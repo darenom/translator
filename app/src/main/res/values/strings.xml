@@ -1,4 +1,15 @@
 <resources>
     <string name="app_name">VisualTralslator</string>
+
+    <!-- Main Activity components -->
+    <string name="main_button">Picture</string>
+    <string name="main_toggle_true">Edit</string>
+    <string name="main_toggle_false">Translate</string>
+    <string name="main_edit_hint">Enter your text here</string>
+
+
+
     <string name="low_storage_error">Face detector dependencies cannot be downloaded due to low device storage</string>
+
+
 </resources>

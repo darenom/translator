@@ -1,55 +1,83 @@
 package org.darenom.visualtralslator;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.ButtonBarLayout;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.View;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 
 import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.text.TextBlock;
 import com.google.android.gms.vision.text.TextRecognizer;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
     private final String TAG = getClass().getSimpleName();
     static final int REQUEST_IMAGE_CAPTURE = 1;
 
-    private ImageView mImageView;
     private Button mButton;
-    private TextView mText;
+    private ToggleButton mToggle;
+    private EditText mEdit;
+    private WebView mWebView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mImageView = (ImageView) findViewById(R.id.bmp);
-        mButton = (Button) findViewById(R.id.pic);
-        mText = (TextView) findViewById(R.id.text);
+        mButton = (Button) findViewById(R.id.button);
+        mToggle = (ToggleButton) findViewById(R.id.toggle);
+
+        mWebView = (WebView) findViewById(R.id.web);
+        mEdit = (EditText) findViewById(R.id.edit);
+
         mButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                dispatchTakePictureIntent();
+                mWebView.setVisibility(View.GONE);
+                mEdit.setVisibility(View.GONE);
+                mToggle.setChecked(true);
+
+                // Cam stuff
+                Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+                    startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+                }
             }
         });
 
-    }
-
-    private void dispatchTakePictureIntent() {
-        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
-        }
+        mToggle.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mToggle.isChecked()){
+                    mWebView.setVisibility(View.VISIBLE);
+                    mEdit.setVisibility(View.GONE);
+                    String decode = mEdit.getText().toString();
+                    if (!decode.isEmpty()){
+                        translate(decode);
+                    }
+                } else {
+                    mWebView.setVisibility(View.GONE);
+                    mEdit.setVisibility(View.VISIBLE);
+                }
+            }
+        });
     }
 
     @Override
@@ -57,8 +85,8 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             Bundle extras = data.getExtras();
             Bitmap imageBitmap = (Bitmap) extras.get("data");
-            mImageView.setImageBitmap(imageBitmap);
-            mText.setText(decode(imageBitmap));
+            String decode = decode(imageBitmap);
+            mEdit.setText(decode);
         }
     }
 
@@ -100,4 +128,22 @@ public class MainActivity extends AppCompatActivity {
         return decode;
     }
 
+    @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
+    private String translate(String text) {
+        String tranlate = "";
+        mWebView.getSettings().setJavaScriptEnabled(true);
+        mWebView.setWebViewClient(new WebViewClient());
+        String url = null;
+        try {
+            url = "https://translate.google.com/m?hl=" + Locale.getDefault().getLanguage()
+                    + "&sl=auto&tl=" + Locale.getDefault().getLanguage()    // todo: replace auto by TextBlock.getLanguage()
+                    + "&ie=UTF-8&prev=_m&q=" + URLEncoder.encode(text, "utf-8");
+
+            Log.e(TAG, url);
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        mWebView.loadUrl(url);
+        return tranlate;
+    }
 }
