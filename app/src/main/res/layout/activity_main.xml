@@ -8,42 +8,131 @@
 
     <RelativeLayout
         android:id="@+id/bar"
-        android:layout_alignParentTop="true"
-        android:orientation="horizontal"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        <Button
-            android:id="@+id/button"
-            android:layout_alignParentStart="true"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/main_button" />
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_marginBottom="@dimen/main_bar_marg"
+        android:layout_marginTop="@dimen/main_bar_marg"
+        android:orientation="horizontal">
 
-        <ToggleButton
-            android:id="@+id/toggle"
-            android:layout_alignParentEnd="true"
+        <Button
+            android:id="@+id/button_camera"
+            android:layout_width="@dimen/main_icon"
+            android:layout_height="@dimen/main_icon"
+            android:layout_alignParentStart="true"
+            android:layout_marginStart="@dimen/main_icon_marg"
+            android:background="@drawable/ic_camera_black_24dp"
+            android:text="" />
+
+        <Button
+            android:id="@+id/button_hear"
+            android:layout_toEndOf="@+id/button_camera"
+            android:layout_width="@dimen/main_icon"
+            android:layout_height="@dimen/main_icon"
+            android:layout_marginStart="@dimen/main_icon_marg"
+            android:background="@drawable/ic_record_voice_over_black_24dp"
+            android:text="" />
+
+        <Spinner
+            android:id="@+id/spin_hear"
+            android:layout_alignParentTop="true"
+            android:layout_toEndOf="@+id/button_hear"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:textOn="@string/main_toggle_false"
-            android:textOff="@string/main_toggle_false" />
+            android:layout_height="wrap_content"/>
+
+        <Button
+            android:id="@+id/button_swap"
+            android:layout_toEndOf="@+id/spin_hear"
+            android:layout_toStartOf="@+id/spin_say"
+            android:layout_marginRight="@dimen/main_icon_marg"
+            android:layout_marginLeft="@dimen/main_icon_marg"
+            android:layout_width="@dimen/main_icon"
+            android:layout_height="@dimen/main_icon"
+            android:background="@drawable/ic_swap_horiz_black_24dp"
+            android:text="" />
+
+        <Spinner
+            android:id="@+id/spin_say"
+            android:layout_alignParentTop="true"
+            android:layout_toStartOf="@+id/button_say"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <Button
+            android:id="@+id/button_say"
+            android:layout_width="@dimen/main_icon"
+            android:layout_height="@dimen/main_icon"
+            android:layout_toStartOf="@+id/button_translate"
+            android:layout_marginEnd="@dimen/main_icon_marg"
+            android:background="@drawable/ic_speaker_phone_black_24dp"
+            android:text="" />
+
+        <Button
+            android:id="@+id/button_translate"
+            android:layout_width="@dimen/main_icon"
+            android:layout_height="@dimen/main_icon"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="@dimen/main_icon_marg"
+            android:background="@drawable/ic_translate_black_24dp"
+            android:text="" />
     </RelativeLayout>
 
-    <EditText
-        android:layout_below="@+id/bar"
-        android:layout_alignParentBottom="true"
-        android:id="@+id/edit"
-        android:text=""
-        android:hint="@string/main_edit_hint"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
 
-    <WebView
-        android:layout_below="@+id/bar"
-        android:layout_alignParentBottom="true"
-        android:id="@+id/web"
+    <RelativeLayout
+        android:id="@+id/main_layout_preview"
         android:visibility="gone"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_below="@+id/bar">
+
+        <org.darenom.visualtralslator.ui.camera.CameraSourcePreview
+            android:id="@+id/preview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <org.darenom.visualtralslator.ui.camera.GraphicOverlay
+                android:id="@+id/graphicOverlay"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </org.darenom.visualtralslator.ui.camera.CameraSourcePreview>
+    </RelativeLayout>
+
+
+    <LinearLayout
+        android:id="@+id/main_layout_translate"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_below="@+id/bar"
+        android:orientation="vertical">
+
+        <EditText
+            android:id="@+id/edit"
+            android:gravity="center_vertical"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:textSize="@dimen/main_text_normal"
+            android:layout_weight="1"
+            android:hint="@string/main_edit_hint"
+            android:text="" />
+
+        <TextView
+            android:id="@+id/text"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:textSize="@dimen/main_text_normal"
+            android:padding="@dimen/main_bar_marg"
+            android:gravity="center_vertical"
+            android:layout_weight="1"
+            android:hint="@string/main_text_hint"
+            android:text="" />
+
+        <WebView
+            android:id="@+id/web"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+    </LinearLayout>
 
 </RelativeLayout>

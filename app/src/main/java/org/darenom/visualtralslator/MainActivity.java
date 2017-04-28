@@ -1,58 +1,106 @@
 package org.darenom.visualtralslator;
 
 import android.annotation.SuppressLint;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
-import android.provider.MediaStore;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.speech.RecognizerIntent;
+import android.speech.tts.TextToSpeech;
+import android.support.v7.app.AppCompatActivity;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.View;
+import android.webkit.ValueCallback;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
+import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ToggleButton;
 
 import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.text.TextBlock;
 import com.google.android.gms.vision.text.TextRecognizer;
 
+import org.darenom.visualtralslator.ui.camera.CameraSourcePreview;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final String TAG = getClass().getSimpleName();
     static final int REQUEST_IMAGE_CAPTURE = 1;
-
-    private Button mButton;
-    private ToggleButton mToggle;
+    static final int REQUEST_CODE_SPEECH_INPUT = 2;
+    private final String TAG = getClass().getSimpleName();
+    private Button mCam;
+    private Button mTrans;
+    private Button mHear;
+    private Spinner sHear;
+    private Button mSwap;
+    private Button mSay;
+    private Spinner sSay;
     private EditText mEdit;
+    private TextView mText;
     private WebView mWebView;
+    private CameraSourcePreview mPreview;
+    private LinearLayout translateLayout;
+    private RelativeLayout previewLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mButton = (Button) findViewById(R.id.button);
-        mToggle = (ToggleButton) findViewById(R.id.toggle);
+        translateLayout = (LinearLayout) findViewById(R.id.main_layout_translate);
+        previewLayout = (RelativeLayout) findViewById(R.id.main_layout_preview);
+
+        mCam = (Button) findViewById(R.id.button_camera);
+        mHear = (Button) findViewById(R.id.button_hear);
+        mSwap = (Button) findViewById(R.id.button_swap);
+        mSay = (Button) findViewById(R.id.button_say);
+        mTrans = (Button) findViewById(R.id.button_translate);
 
         mWebView = (WebView) findViewById(R.id.web);
         mEdit = (EditText) findViewById(R.id.edit);
+        mText = (TextView) findViewById(R.id.text);
+        mPreview = (CameraSourcePreview) findViewById(R.id.preview);
 
-        mButton.setOnClickListener(new View.OnClickListener() {
+        mEdit.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (s.length() == 0)
+                    mText.setText("");
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+
+            }
+        });
+
+        mCam.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mWebView.setVisibility(View.GONE);
-                mEdit.setVisibility(View.GONE);
-                mToggle.setChecked(true);
+                translateLayout.setVisibility(View.GONE);
+                previewLayout.setVisibility(View.VISIBLE);
 
                 // Cam stuff
                 Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
@@ -62,20 +110,49 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        mToggle.setOnClickListener(new View.OnClickListener() {
+        mHear.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (mToggle.isChecked()){
-                    mWebView.setVisibility(View.VISIBLE);
-                    mEdit.setVisibility(View.GONE);
-                    String decode = mEdit.getText().toString();
-                    if (!decode.isEmpty()){
-                        translate(decode);
-                    }
-                } else {
-                    mWebView.setVisibility(View.GONE);
-                    mEdit.setVisibility(View.VISIBLE);
+                translateLayout.setVisibility(View.VISIBLE);
+                previewLayout.setVisibility(View.GONE);
+                Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+                intent.putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.main_speech_prompt));
+                try {
+                    startActivityForResult(intent, REQUEST_CODE_SPEECH_INPUT);
+                } catch (ActivityNotFoundException a) {
+                    Toast.makeText(getApplicationContext(),
+                            getString(R.string.main_speech_not_supported), Toast.LENGTH_SHORT).show();
                 }
+
+            }
+        });
+
+        mSwap.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+            }
+        });
+
+        mSay.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                TextToSpeech tts = new TextToSpeech(getApplicationContext(), null);
+                tts.setLanguage(Locale.FRANCE);
+                tts.speak("Text to say aloud", TextToSpeech.QUEUE_ADD, null);
+            }
+        });
+
+        mTrans.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mPreview.setVisibility(View.GONE);
+                translateLayout.setVisibility(View.VISIBLE);
+                String decode = mEdit.getText().toString();
+                if (!decode.isEmpty())
+                    translate(decode);
             }
         });
     }
@@ -88,13 +165,16 @@ public class MainActivity extends AppCompatActivity {
             String decode = decode(imageBitmap);
             mEdit.setText(decode);
         }
+        if (requestCode == REQUEST_CODE_SPEECH_INPUT && resultCode == RESULT_OK) {
+            ArrayList<String> result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            mEdit.setText(result.get(0));
+        }
     }
 
     private String decode(Bitmap imageBitmap) {
         String decode = "";
         TextRecognizer textRecognizer = new TextRecognizer.Builder(this).build();
         Frame frame = new Frame.Builder().setBitmap(imageBitmap).build();
-
         SparseArray<TextBlock> texts = textRecognizer.detect(frame);
         String[] langs = new String[texts.size()];
         if (!textRecognizer.isOperational()) {
@@ -115,12 +195,12 @@ public class MainActivity extends AppCompatActivity {
             boolean hasLowStorage = registerReceiver(null, lowstorageFilter) != null;
 
             if (hasLowStorage) {
-                Toast.makeText(this, R.string.low_storage_error, Toast.LENGTH_LONG).show();
-                Log.w(TAG, getString(R.string.low_storage_error));
+                Toast.makeText(this, R.string.main_low_storage_error, Toast.LENGTH_LONG).show();
+                Log.w(TAG, getString(R.string.main_low_storage_error));
             }
         }
 
-        for (int i = 0; i < texts.size(); i++){
+        for (int i = 0; i < texts.size(); i++) {
             TextBlock text = texts.valueAt(i);
             decode = decode + text.getValue() + "\n";
         }
@@ -128,11 +208,32 @@ public class MainActivity extends AppCompatActivity {
         return decode;
     }
 
+
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     private String translate(String text) {
         String tranlate = "";
         mWebView.getSettings().setJavaScriptEnabled(true);
-        mWebView.setWebViewClient(new WebViewClient());
+        mWebView.setWebViewClient(new WebViewClient() {
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                mWebView.evaluateJavascript(
+                        "(function() { return (document.getElementsByClassName('t0')[0].innerHTML); })();",
+                        new ValueCallback<String>() {
+                            @Override
+                            public void onReceiveValue(String html) {
+                                mText.setText(html.substring(1, html.length() - 1));
+                            }
+                        });
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                Log.e(TAG, error.toString());
+            }
+        });
         String url = null;
         try {
             url = "https://translate.google.com/m?hl=" + Locale.getDefault().getLanguage()
