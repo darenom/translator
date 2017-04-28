@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="main_text_normal">26sp</dimen>
+    <dimen name="main_icon">30dp</dimen>
+    <dimen name="main_icon_marg">20dp</dimen>
+    <dimen name="main_bar_marg">6dp</dimen>
+
+</resources>
