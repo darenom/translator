@@ -2,14 +2,18 @@
     <string name="app_name">VisualTralslator</string>
 
     <!-- Main Activity components -->
-    <string name="main_edit_hint">Enter or edit your text here</string>
-    <string name="main_text_hint">Tranlated text here</string>
+    <string name="main_edit_hint">Tap here to edit \n\t\t or enter your text.</string>
+    <string name="main_text_hint">Tranlated text here.</string>
+    <string name="main_button_clear">Clear</string>
     <string name="main_speech_prompt">Say something&#8230;</string>
 
 
     <string name="main_low_storage_error">Dependencies cannot be downloaded due to low device storage</string>
     <string name="main_speech_not_supported">Sorry! Your device doesn\'t support speech input</string>
 
+    <string name="error_selec_lang">Can\'t have same language on both sides…</string>
 
+    <string name="drawer_open">OPEN</string>
+    <string name="drawer_close">CLOSE</string>
 
 </resources>

@@ -1,11 +1,9 @@
 <resources>
 
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <!-- Customize your theme here. -->
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
+    <style name="ToToTranslator" parent="Theme.AppCompat.Light.NoActionBar" />
+
+    <style name="spinner_no_arrow" parent="android:Widget.Spinner.DropDown">
+        <item name="android:background">@drawable/bg_spinner_left</item>
     </style>
 
 </resources>
