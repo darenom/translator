@@ -9,24 +9,27 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
-import android.support.v4.content.ContextCompat;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodInfo;
+import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.InputMethodSubtype;
 import android.webkit.ValueCallback;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -52,18 +55,17 @@ import java.util.Set;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+import butterknife.OnItemSelected;
 
 public class MainActivity extends Activity {
 
-    static final String LANG1 = "lang_1"; //local
-    static final String LANG2 = "lang_2"; //foreign
+    static final String LANG1 = "lang_1";
+    static final String LANG2 = "lang_2";
     static final int REQUEST_IMAGE_CAPTURE = 1;
     static final int REQUEST_CODE_SPEECH_INPUT = 2;
     static final int REQUEST_CHECK_TTS_DATA = 3;
     private final String TAG = getClass().getSimpleName();
-    public sAdapter sLangAdapter;
-    List<String> hear_langs;
-    List<String> say_langs;
+
     @BindView(R.id.spin_lang_1)
     Spinner sLang1;
     @BindView(R.id.spin_lang_2)
@@ -92,51 +94,41 @@ public class MainActivity extends Activity {
     Button mClear;
     @BindView(R.id.button_translate)
     Button mTrans;
-    private Locale currentLocale;
-    private SharedPreferences mPrefs;
-    private TextToSpeech tts;
-    private AdapterView.OnItemSelectedListener slistener = new AdapterView.OnItemSelectedListener() {
-        @Override
-        public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-            // local lang ? no way.
-            if (parent.getId() == R.id.spin_lang_2 && id == 0) {
-                for (String code : sLangAdapter.mCodList) {
-                    if (code.contentEquals(currentLocale.getLanguage().toUpperCase())) {
-                        sLang2.setSelection(sLangAdapter.mCodList.indexOf(code));
-                        sLang1.setSelection(0);
-                        break;
-                    }
-                }
-                // cant' get same value on both sides
-            } else if (sLang1.getSelectedItemId() == sLang2.getSelectedItemId()) {
-                Toast.makeText(getApplicationContext(), R.string.error_selec_lang, Toast.LENGTH_SHORT).show();
-                sLang1.setSelection(0);
-            }
-        }
 
-        @Override
-        public void onNothingSelected(AdapterView<?> parent) {
 
-        }
-    };
-    private TextToSpeech.OnInitListener ttsListener = new TextToSpeech.OnInitListener() {
-
+    Locale currentLocale;
+    InputMethodSubtype originalIMEsubType;
+    String ime1;
+    String ime2;
+    SharedPreferences mPrefs;
+    InputMethodManager imeManager;
+    sAdapter sLangAdapter;
+    TextToSpeech tts;
+    TextToSpeech.OnInitListener ttsListener = new TextToSpeech.OnInitListener() {
         @Override
         public void onInit(int status) {
             if (status == TextToSpeech.SUCCESS) {
                 Log.i(TAG, "Getting TTS available languages");
                 Set<Locale> all_lang = tts.getAvailableLanguages();
-                say_langs = new ArrayList<>();
-                for (Locale loc : all_lang) {
-                    say_langs.add(loc.getLanguage() + "-" + loc.getCountry());
-                }
-                if (BuildConfig.DEBUG) {
-                    Log.d(TAG, "[say country]");
-                    for (String s : say_langs) {
-                        Log.d(TAG, s);
+                for (String hearCode : sLangAdapter.mCodList) {
+                    boolean found = false;
+                    String locLang = "";
+                    for (Locale loc : all_lang) {
+                        locLang = loc.getLanguage();
+                        if (hearCode.contentEquals(loc.getCountry())) {
+                            found = true;
+                            sLangAdapter.mSayList.add(locLang);
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        if (locLang.contentEquals(sLangAdapter.mHearList.get(sLangAdapter.mCodList.indexOf(hearCode))))
+                            sLangAdapter.mSayList.add(locLang);
+                        else
+                            sLangAdapter.mSayList.add("0");
                     }
                 }
-                finishInit();
+                setFlags();
             }
         }
     };
@@ -144,10 +136,39 @@ public class MainActivity extends Activity {
     @OnClick(R.id.reload)
     public void reload() {
         Log.i(TAG, "Getting available speech recognition languages");
+        sLangAdapter = new sAdapter(this, R.layout.spinner_item);
         // get available languages for speech recognition
         Intent detailsIntent = new Intent(RecognizerIntent.ACTION_GET_LANGUAGE_DETAILS);
-        LanguageDetailsChecker checker = new LanguageDetailsChecker();
-        sendOrderedBroadcast(detailsIntent, null, checker, null, Activity.RESULT_OK, null, null);
+        sendOrderedBroadcast(detailsIntent, null, new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Bundle results = getResultExtras(true);
+                if (results.containsKey(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE)) {
+                    Log.d(TAG, "Prefs : " + results.getString(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE));
+                }
+                if (results.containsKey(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES)) {
+                    ArrayList<String> tmp = results.getStringArrayList(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES);
+                    if (null != tmp) {
+                        Collections.sort(tmp);
+                        for (String s : tmp) {
+                            String[] split = s.split("-");
+                            if (split.length < 2) {
+                                sLangAdapter.mHearList.add(split[0]); // hear
+                                sLangAdapter.mCodList.add("0"); // country
+                            } else {
+                                sLangAdapter.mHearList.add(split[0]); // hear
+                                sLangAdapter.mCodList.add(split[1]); // country
+                            }
+                        }
+                    }
+                }
+                Log.i(TAG, "Checking TTS availability");
+                // get available languages for tts(
+                Intent checkIntent = new Intent();
+                checkIntent.setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+                startActivityForResult(checkIntent, REQUEST_CHECK_TTS_DATA);
+            }
+        }, null, Activity.RESULT_OK, null, null);
     }
 
     @OnClick(R.id.button_camera)
@@ -166,6 +187,7 @@ public class MainActivity extends Activity {
 
     @OnClick(R.id.button_hear)
     public void button_hear() {
+        mHear.setVisibility(View.GONE);
         Log.i(TAG, "Speech recognition requested");
         mEdit.setText("");
         translateLayout.setVisibility(View.VISIBLE);
@@ -194,6 +216,15 @@ public class MainActivity extends Activity {
         sLang1.setSelection(0);
         sLang2.setSelection(f_ref);
         sLang1.setSelection(l_ref);
+
+
+        // within same type
+        String tmp = ime2;
+        ime2 = ime1;
+        ime1 = tmp;
+
+        //imeManager.setCurrentInputMethodSubtype(ime2);
+
     }
 
     @OnClick(R.id.button_say)
@@ -216,17 +247,29 @@ public class MainActivity extends Activity {
 
     @OnClick(R.id.button_translate)
     public void button_translate() {
+        mTrans.setVisibility(View.GONE);
         Log.i(TAG, "Translation requested");
+        mTrans.setVisibility(View.GONE);
         previewLayout.setVisibility(View.GONE);
         translateLayout.setVisibility(View.VISIBLE);
         String toTranslate = mEdit.getText().toString();
         if (!toTranslate.isEmpty()) {
             translate(toTranslate,
-                    sLangAdapter.mHearList.get(sLang1.getSelectedItemPosition()),
-                    sLangAdapter.mHearList.get(sLang2.getSelectedItemPosition()));
+                    sLangAdapter.mHearList.get(sLang2.getSelectedItemPosition()),
+                    sLangAdapter.mHearList.get(sLang1.getSelectedItemPosition()));
         }
     }
 
+    @OnItemSelected(R.id.spin_lang_1)
+    void onLang1Selected(int position) {
+        //ime1 = "ime_" + sLangAdapter.mHearList.get(position) + "_" + sLangAdapter.mCodList.get(position);
+        Log.e(TAG, "Lang1");
+    }
+
+    @OnItemSelected(R.id.spin_lang_2)
+    void onLang2Selected(int position) {
+        imeOps(sLangAdapter.mHearList.get(position), sLangAdapter.mCodList.get(position));
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -234,8 +277,14 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
 
-        mPrefs = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
 
+
+        // disable cam stuff for now
+        mCam.setVisibility(View.GONE);
+
+        mPrefs = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
+        imeManager = (InputMethodManager) getApplicationContext().getSystemService(INPUT_METHOD_SERVICE);
+        originalIMEsubType = imeManager.getCurrentInputMethodSubtype();
         mEdit.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -255,17 +304,17 @@ public class MainActivity extends Activity {
             }
         });
         Log.i(TAG, "Activity created");
-
         currentLocale = Locale.getDefault();
-
+        // get current ime
+        // onChange compare languages
         reload();
     }
 
     @Override
     protected void onPause() {
         SharedPreferences.Editor ed = mPrefs.edit();
-        ed.putInt(LANG1, sLang2.getSelectedItemPosition());
-        ed.putInt(LANG2, sLang1.getSelectedItemPosition());
+        ed.putInt(LANG1, sLang1.getSelectedItemPosition());
+        ed.putInt(LANG2, sLang2.getSelectedItemPosition());
         ed.apply();
         super.onPause();
     }
@@ -288,10 +337,13 @@ public class MainActivity extends Activity {
             previewLayout.setVisibility(View.GONE);
             translateLayout.setVisibility(View.VISIBLE);
         }
-        if (requestCode == REQUEST_CODE_SPEECH_INPUT && resultCode == RESULT_OK) {
-            Log.i(TAG, "Speech received");
-            ArrayList<String> result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-            mEdit.setText(result.get(0));
+        if (requestCode == REQUEST_CODE_SPEECH_INPUT) {
+            if (resultCode == RESULT_OK) {
+                Log.i(TAG, "Speech received");
+                mHear.setVisibility(View.VISIBLE);
+                ArrayList<String> result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                mEdit.setText(result.get(0));
+            }
         }
         if (requestCode == REQUEST_CHECK_TTS_DATA) {
             if (resultCode == TextToSpeech.Engine.CHECK_VOICE_DATA_PASS) {
@@ -305,124 +357,112 @@ public class MainActivity extends Activity {
                 startActivity(installIntent);
             }
         }
-
     }
 
-    // set adapter lists
-    private void finishInit() {
-
-        Log.i(TAG, "Building Spinner");
+    void setFlags() {
         List<String> flags = Arrays.asList(getResources().getStringArray(R.array.country_drawable));
         List<String> codes = Arrays.asList(getResources().getStringArray(R.array.country_code));
-
-        // ---------     [hear, country, say, drawable]    --------------//
-        // hear detected languages
-        int resultsLenght = 0;
-        String[][] results = new String[4][150];
-        for (String s : hear_langs) {
-            String[] split = s.split("-");
-            if (!split[0].contentEquals("cmn") && !split[0].contentEquals("yue") && !split[1].contentEquals("001")) {
-                if (split.length < 2) {
-                    results[0][resultsLenght] = split[0]; // hear
-                    results[1][resultsLenght] = "0"; // country
-                } else {
-                    results[0][resultsLenght] = split[0]; // hear
-                    results[1][resultsLenght] = split[1]; // country
-                }
-                resultsLenght++;
-            }
-        }
-        hear_langs = null;
-
-        // say detected languages
-        // todo: toAdd unused
-        String[] fc = results[1]; // ref country
-        List<String> toAdd = new ArrayList<>();
-        List<String> allLang = new ArrayList<>();
-        for (int i = 0; i < resultsLenght; i++) {
-            boolean found = false;
-            for (String s : say_langs) {
-                String[] split = s.split("-");
-                if (!allLang.contains(split[0]))
-                    allLang.add(split[0]);
-                if (split.length < 2) {
-                    if (!toAdd.contains(split[0]))
-                        toAdd.add(split[0]);
-                } else {
-                    //country present
-                    if (split[1].contentEquals(fc[i])) {
+        // put matching drawable reference
+        for (String flagCode : sLangAdapter.mCodList) {
+            if (!flagCode.contentEquals("0")) {
+                boolean found = false;
+                for (String c : codes) {
+                    if (c.contentEquals(flagCode)) {
                         found = true;
-                        if (results[0][i].contentEquals(split[0])) {
-                            results[2][i] = split[0];
-                        } else {
-                            results[2][i] = results[0][i];
-                        }
+                        sLangAdapter.mDrawList.add(flags.get(codes.indexOf(c)));
                         break;
                     }
                 }
-            }
-            if (!found) {
-                if (allLang.contains(results[0][i]))
-                    results[2][i] = results[0][i];
-                else
-                    results[2][i] = "0"; // unsupported say language
+                if (!found)
+                    sLangAdapter.mDrawList.add(flags.get(0));
+            } else {
+                sLangAdapter.mDrawList.add(flags.get(0));
             }
         }
-        say_langs = null;
-
-        // put matching drawable reference
-        for (int i = 0; i < resultsLenght; i++) {
-            boolean found = false;
-            for (String c : codes) {
-                if (c.contentEquals(fc[i])) {
-                    results[3][i] = flags.get(codes.indexOf(fc[i]));
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-                results[3][i] = flags.get(0);
-        }
-
-
-        results[0][resultsLenght] = "cmn";
-        results[1][resultsLenght] = "CN";
-        results[2][resultsLenght] = "zh";
-        results[3][resultsLenght] = "flag_cn";
-        resultsLenght++;
-
-        results[0][resultsLenght] = "cmn";
-        results[1][resultsLenght] = "CN";
-        results[2][resultsLenght] = "yue";
-        results[3][resultsLenght] = "flag_cn";
-        resultsLenght++;
-
-        sLangAdapter = new sAdapter(this, R.layout.spinner_item,
-                Arrays.asList(results[1]).subList(0, resultsLenght),
-                Arrays.asList(results[3]).subList(0, resultsLenght),
-                Arrays.asList(results[0]).subList(0, resultsLenght),
-                Arrays.asList(results[2]).subList(0, resultsLenght));
+        sLangAdapter.notifyDataSetChanged();
 
         sLangAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
         sLang1.setAdapter(sLangAdapter);
-        sLang1.setOnItemSelectedListener(slistener);
-
         sLang2.setAdapter(sLangAdapter);
-        sLang2.setOnItemSelectedListener(slistener);
 
-        sLang2.setSelection(mPrefs.getInt(LANG1, 0));
-        sLang1.setSelection(mPrefs.getInt(LANG2, 0));
+        sLang1.setSelection(mPrefs.getInt(LANG1, 0));
+        sLang2.setSelection(mPrefs.getInt(LANG2, 0));
 
-        if (BuildConfig.DEBUG) {
-            Log.d(TAG, "[hear, country, say, drawable] - " + resultsLenght);
-            for (int i = 0; i < resultsLenght; i++)
-                Log.d(TAG, String.format(currentLocale, "%s - %s - %s - %s", results[0][i], results[1][i], results[2][i], results[3][i]));
-            Log.d(TAG, "[toAdd] - " + toAdd.size());
-            for (String s : toAdd)
-                Log.d(TAG, s);
-        }
         Log.i(TAG, "All Done.");
+    }
+
+    void imeOps(String lang, String country) {
+
+        boolean isPresent = false;
+        boolean isEnabled = false;
+        boolean isSet = false;
+
+        String currentInput = Settings.Secure.getString(getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD);
+
+        InputMethodSubtype currentSubType = imeManager.getCurrentInputMethodSubtype();
+        Log.e(TAG, String.format("%s => mode : %s // extra : %s", currentInput, currentSubType.getMode(), currentSubType.getExtraValue()));
+
+        ArrayList<String> inputMethods = new ArrayList<>();
+        List<InputMethodInfo> bip = imeManager.getInputMethodList();
+        for (InputMethodInfo inputMethodInfo : bip) {
+            Log.e(TAG, String.format("input type => %s - %s - %s", inputMethodInfo.getId(), inputMethodInfo.loadLabel(getPackageManager()).toString(), inputMethodInfo.getPackageName()));
+            inputMethods.add(inputMethodInfo.getId());
+            for (int i = 0; i < inputMethodInfo.getSubtypeCount(); i++){
+                // list keysets
+                Log.e(TAG, inputMethodInfo.getSubtypeAt(i).getExtraValue());
+                //if (inputMethodInfo.getSubtypeAt(i).equals(current)) {
+                //    isPresent = true;
+                //    break;
+                //}
+
+            }
+        }
+
+        if (lang.contentEquals("ja")){
+
+        }
+
+        if (lang.contentEquals("cmn")){
+           // cmn_Hans
+           // cmn_Hant
+        }
+
+        // know active input method
+        Log.e(TAG, String.format("%s_%s : %s ", lang, country, Settings.Secure.getString(getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD)));
+
+
+
+
+        //
+      //  InputMethodSubtype current = imeManager.getCurrentInputMethodSubtype();
+      //  Log.e(TAG, String.format("current input subtype => mode : %s // extra : %s", current.getMode(), current.getExtraValue()));
+
+
+        //    if (!isPresent){
+    //        imeManager.showInputMethodPicker();
+    //    } else {
+    //        final Intent intent = new Intent(Settings.ACTION_INPUT_METHOD_SUBTYPE_SETTINGS);
+    //        intent.putExtra(Settings.EXTRA_INPUT_METHOD_ID, inputMethods.get(0));
+    //        intent.putExtra(Intent.EXTRA_TITLE, getString(R.string.ime_select));
+    //        startActivity(intent);
+    //    }
+
+     //   List<InputMethodInfo> InputMethods = imeManager.getEnabledInputMethodList();
+     //   for (InputMethodInfo inputMethodInfo : InputMethods) {
+     //       Log.e(TAG, String.format("enabled input list => %s - %s", inputMethodInfo.loadLabel(getPackageManager()).toString(), inputMethodInfo.getPackageName()));
+     //   }
+
+    }
+
+    void getFromStore(String appName) {
+        if (!appName.isEmpty()) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + appName)));
+            } catch (android.content.ActivityNotFoundException anfe) {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + appName)));
+            }
+        }
     }
 
     /**
@@ -472,7 +512,11 @@ public class MainActivity extends Activity {
                         new ValueCallback<String>() {
                             @Override
                             public void onReceiveValue(String html) {
-                                mText.setText(html.substring(1, html.length() - 1));
+                                mTrans.setVisibility(View.VISIBLE);
+                                if (!html.contentEquals("ul"))
+                                    mText.setText(html.substring(1, html.length() - 1));
+                                else
+                                    Toast.makeText(getApplicationContext(), getString(R.string.no_net), Toast.LENGTH_SHORT).show();
                             }
                         });
             }
@@ -480,6 +524,7 @@ public class MainActivity extends Activity {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
+                mTrans.setVisibility(View.VISIBLE);
                 Log.e(TAG, error.toString());
             }
         });
@@ -498,18 +543,17 @@ public class MainActivity extends Activity {
 
     class sAdapter extends ArrayAdapter {
 
-        private List<String> mHearList;
-        private List<String> mSayList;
-        private List<String> mCodList;
-        private List<String> mDrawList;
+        List<String> mHearList;
+        List<String> mSayList;
+        List<String> mCodList;
+        List<String> mDrawList;
 
-        sAdapter(Context context, int viewResourceId, List<String> codList, List<String> drawList, List<String> hearList, List<String> sayList) {
-
+        sAdapter(Context context, int viewResourceId) {
             super(context, viewResourceId);
-            this.mCodList = codList;
-            this.mDrawList = drawList;
-            this.mHearList = hearList;
-            this.mSayList = sayList;
+            this.mCodList = new ArrayList<>();
+            this.mDrawList = new ArrayList<>();
+            this.mHearList = new ArrayList<>();
+            this.mSayList = new ArrayList<>();
         }
 
         @Override
@@ -556,37 +600,5 @@ public class MainActivity extends Activity {
             }
         }
 
-    }
-
-    public class LanguageDetailsChecker extends BroadcastReceiver {
-
-        private static final String TAG = "LanguageDetailsChecker";
-
-        private String languagePreference;
-
-        public LanguageDetailsChecker() {
-
-        }
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Bundle results = getResultExtras(true);
-            if (results.containsKey(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE)) {
-                languagePreference = results
-                        .getString(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE);
-                Log.d(TAG, "Prefs : " + languagePreference);
-            }
-            if (results.containsKey(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES)) {
-                hear_langs = new ArrayList<>();
-                hear_langs = results.getStringArrayList(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES);
-            }
-            if (null != hear_langs)
-                Collections.sort(hear_langs);
-            Log.i(TAG, "Checking TTS availability");
-            // get available languages for tts(
-            Intent checkIntent = new Intent();
-            checkIntent.setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
-            startActivityForResult(checkIntent, REQUEST_CHECK_TTS_DATA);
-        }
     }
 }

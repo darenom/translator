@@ -12,6 +12,9 @@
     <string name="main_speech_not_supported">Sorry! Your device doesn\'t support speech input</string>
 
     <string name="error_selec_lang">Can\'t have same language on both sides…</string>
+    <string name="no_net">Check your Internet connection.</string>
+
+    <string name="ime_select">Add keyboards</string>
 
     <string name="drawer_open">OPEN</string>
     <string name="drawer_close">CLOSE</string>
