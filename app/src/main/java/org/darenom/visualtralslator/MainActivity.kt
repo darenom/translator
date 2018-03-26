@@ -2,16 +2,16 @@ package org.darenom.visualtralslator;
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.arch.lifecycle.ViewModelProviders
+import android.content.*
 import android.graphics.Bitmap
-import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.provider.MediaStore
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.support.v7.app.AppCompatActivity
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -30,64 +30,133 @@ import kotlin.collections.ArrayList
 
 class MainActivity : AppCompatActivity(), View.OnClickListener {
 
-    var currentLocale: Locale? = null
+    private lateinit var vm: MainViewModel
     var tts: TextToSpeech? = null
 
+    var currentLocale: Locale? = null
     var allCodes: Array<String>? = null
     var allFlags: Array<String>? = null
 
     val list = ArrayList<String>()
-    var ttsList = ArrayList<String>()
     var voiceList = ArrayList<String>()
+
+    var lang1: String? = null
+    var lang2: String? = null
 
     val ttsListener = TextToSpeech.OnInitListener {
         if (it == TextToSpeech.SUCCESS) {
-            tts?.availableLanguages?.forEach {
-                if (!ttsList.contains(it.country)) ttsList.add(it.country) }
-            (spin_lang_1.adapter as SpinAdapter).resetTo(ttsList)
+            if (vm.ttsList.isEmpty())
+                tts?.availableLanguages?.forEach {
+                    if (!vm.ttsList.containsKey(it.country))
+                        vm.ttsList[it.country] = it.language
+                }
+            onReady()
         }
+    }
+
+    private fun onReady() {
+
+        // languages spinners
+        spin_lang_1.adapter = SpinAdapter(this, R.layout.spinner_item, vm.ttsList.keys.toTypedArray())
+        spin_lang_1.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, pos: Int, id: Long) {
+                lang1 = vm.ttsList.values.elementAt(pos)
+                vm.sp1.value = pos
+            }
+
+            override fun onNothingSelected(parent: AdapterView<out Adapter>?) {}
+        }
+
+        spin_lang_2.adapter = SpinAdapter(this, R.layout.spinner_item, vm.ttsList.keys.toTypedArray())
+        spin_lang_2.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, pos: Int, id: Long) {
+                lang2 = vm.ttsList.values.elementAt(pos)
+                vm.sp2.value = pos
+            }
+
+            override fun onNothingSelected(parent: AdapterView<out Adapter>?) {}
+        }
+
+        edit.addTextChangedListener(object: TextWatcher {
+            override fun afterTextChanged(p0: Editable?) {}
+            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+                vm.edt.value = p0.toString()
+            }
+        })
+
+    }
+
+    override fun onPause() {
+        super.onPause()
+        vm.stamp()
     }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        setUp()
-    }
-
-    fun setUp() {
+        vm = ViewModelProviders.of(this).get(MainViewModel::class.java)
         allCodes = resources.getStringArray(R.array.country_code)
         allFlags = resources.getStringArray(R.array.country_drawable)
+        subscribeUI()
+        setUp()
 
-        spin_lang_1.adapter = SpinAdapter(this, R.layout.spinner_item)
-        spin_lang_1.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, pos: Int, id: Long) {
+    }
 
+    private fun subscribeUI() {
+
+        vm.sp1.observe(this, android.arch.lifecycle.Observer {
+            if (null != it) {
+                spin_lang_1.setSelection(it)
             }
+        })
 
-            override fun onNothingSelected(parent: AdapterView<out Adapter>?) {}
-        }
+        vm.sp2.observe(this, android.arch.lifecycle.Observer {
+            if (null != it) {
+                spin_lang_2.setSelection(it)
+            }
+        })
+
+        vm.edt.observe(this, android.arch.lifecycle.Observer {
+            if (null != it) {
+                edit.setText(it)
+            }
+        })
+
+        vm.txt.observe(this, android.arch.lifecycle.Observer {
+            if (null != it) {
+                text.text = it
+            }
+        })
+    }
+
+    private fun setUp() {
+
+        currentLocale = Locale.getDefault()
 
         // all available languages
-        Locale.getAvailableLocales().forEach { if (!list.contains(it.country)) list.add(it.country) }
+        if (vm.ttsList.isEmpty())
+            Locale.getAvailableLocales().forEach { if (!list.contains(it.country)) list.add(it.country) }
 
         // all languages that can be heard
-        val detailsIntent = Intent(RecognizerIntent.ACTION_GET_LANGUAGE_DETAILS)
-        sendOrderedBroadcast(
-                detailsIntent,
-                null,
-                object : BroadcastReceiver() {
-                    override fun onReceive(context: Context?, intent: Intent?) {
-                        val results = getResultExtras(true)
-                        if (results.containsKey(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES))
-                            voiceList = results.getStringArrayList(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES)
+        val detailsIntent = Intent()
+        if (vm.ttsList.isEmpty())
+            sendOrderedBroadcast(
+                    detailsIntent,
+                    null,
+                    object : BroadcastReceiver() {
+                        override fun onReceive(context: Context?, intent: Intent?) {
+                            val results = getResultExtras(true)
+                            if (results.containsKey(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES))
+                                voiceList = results.getStringArrayList(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES)
 
-                    }
-                },
-                null,
-                Activity.RESULT_OK,
-                null,
-                null)
+                        }
+                    },
+                    null,
+                    Activity.RESULT_OK,
+                    null,
+                    null)
 
         // all languages that can be said
         startActivityForResult(
@@ -95,70 +164,55 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 REQUEST_CHECK_TTS_DATA)
     }
 
-    override fun onStart() {
-        super.onStart()
-    }
-
     override fun onClick(v: View?) {
         if (null != v)
             when (v.id) {
                 actionClear.id -> {
-                    edit.setText("")
-                    text.text = ""
+                    vm.edt.value = ""
+                    vm.txt.value = ""
                 }
-            /*
-            actionCamera.id -> {
-                val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-                if (takePictureIntent.resolveActivity(packageManager) != null) {
-                    startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
+                actionCamera.id -> {
+                    val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+                    if (takePictureIntent.resolveActivity(packageManager) != null) {
+                        startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
+                    }
                 }
-            }
-            actionHear.id -> {
-                val hearLocale = Locale(sLangAdapter.mHearList.get(sLang1.getSelectedItemPosition()))
-                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, hearLocale)
-                intent.putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.main_speech_prompt))
-                try {
-                    startActivityForResult(intent, REQUEST_CODE_SPEECH_INPUT)
-                } catch (a: ActivityNotFoundException) {
-                    Toast.makeText(applicationContext,
-                            getString(R.string.main_speech_not_supported), Toast.LENGTH_SHORT).show()
+                actionHear.id -> {
+                    val hearLocale = Locale(lang1)
+                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, hearLocale)
+                    intent.putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.main_speech_prompt))
+                    try {
+                        startActivityForResult(intent, REQUEST_CODE_SPEECH_INPUT)
+                    } catch (a: ActivityNotFoundException) {
+                        Toast.makeText(applicationContext,
+                                getString(R.string.main_speech_not_supported), Toast.LENGTH_SHORT).show()
+                    }
+
+                }
+                actionTranslate.id -> {
+                    translate(edit.text.toString(),
+                            lang2!!,
+                            lang1!!)
+                }
+                actionSwap.id -> {
+                    val f_ref = spin_lang_1.selectedItemPosition
+                    val l_ref = spin_lang_2.selectedItemPosition
+                    spin_lang_1.setSelection(0)
+                    spin_lang_2.setSelection(f_ref)
+                    spin_lang_1.setSelection(l_ref)
+
+                }
+                actionSay.id -> {
+                    val saylocale = Locale(lang1)
+                    tts?.language = saylocale
+                    tts?.speak(text.text.toString(), TextToSpeech.QUEUE_FLUSH, null)
                 }
 
-            }
-            actionTranslate.id -> {
-                translate(edit.text.toString(),
-                        sLangAdapter.mHearList.get(sLang2.getSelectedItemPosition()),
-                        sLangAdapter.mHearList.get(sLang1.getSelectedItemPosition()))
-            }
-            actionSwap.id -> {
-                val f_ref = sLang1.getSelectedItemPosition()
-                val l_ref = sLang2.getSelectedItemPosition()
-                sLang1.setSelection(0)
-                sLang2.setSelection(f_ref)
-                sLang1.setSelection(l_ref)
-
-
-                // within same type
-                val tmp = ime2
-                ime2 = ime1
-                ime1 = tmp
-
-            }
-            actionSay.id -> {
-                val saylocale = Locale(sLangAdapter.mHearList.get(sLang2.getSelectedItemPosition()))
-                tts?.setLanguage(saylocale)
-                tts?.speak(mText.getText().toString(), TextToSpeech.QUEUE_FLUSH, null)
-            }
-            */
             }
     }
 
-
-    override fun onStop() {
-        super.onStop()
-    }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == Activity.RESULT_OK) {
@@ -261,30 +315,21 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         const val REQUEST_CHECK_TTS_DATA = 3
     }
 
-    inner class SpinAdapter(context: Context, resource: Int) : ArrayAdapter<String>(context, resource) {
+    inner class SpinAdapter(context: Context, resource: Int, refs: Array<String>) : ArrayAdapter<String>(context, resource) {
 
-        var index = ArrayList<Int>()
-
-        inner class ViewHolder constructor(context: Context) {
-            var img = ImageView(context)
-            var txt = TextView(context)
-        }
-
-        private var mViewHolder: ViewHolder? = null
+        private var index = ArrayList<Int>()
         private var mInflater: LayoutInflater? = null
-
 
         init {
             mInflater = LayoutInflater.from(context)
-            mViewHolder = ViewHolder(context)
-        }
 
-        fun resetTo(refs: ArrayList<String>) {
             index.clear()
             refs.forEach {
                 val i = allCodes!!.indexOf(it)
                 if (i >= 1) index.add(i) else index.add(0)
             }
+            index.trimToSize()
+
             notifyDataSetChanged()
         }
 
@@ -293,19 +338,12 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         }
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-            var view = convertView
-            if (view == null) {
-                view = LayoutInflater.from(context).inflate(R.layout.spinner_item, parent, false)
-                mViewHolder!!.img = view.findViewById(R.id.img)
-                mViewHolder!!.txt = view.findViewById(R.id.txt)
-                view.tag = mViewHolder
-            } else {
-                mViewHolder = view.tag as ViewHolder
-            }
-            mViewHolder!!.img.background = context.resources.getDrawable(
+            val view: View? = convertView
+                    ?: mInflater?.inflate(R.layout.spinner_item, parent, false)
+            view?.findViewById<ImageView>(R.id.img)?.background = context.resources.getDrawable(
                     context.resources.getIdentifier(allFlags!![index[position]],
                             "drawable", context.packageName))
-            mViewHolder!!.txt.text = resources.getStringArray(R.array.country_code)[index[position]].toString()
+            view?.findViewById<TextView>(R.id.txt)?.text = allCodes!![index[position]]
             return view!!
         }
 
