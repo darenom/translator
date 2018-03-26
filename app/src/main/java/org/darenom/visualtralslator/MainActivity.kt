@@ -84,6 +84,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
     override fun onPause() {
         super.onPause()
+        vm.edt.value = edit.text.toString()
+        vm.txt.value = text.text.toString()
         vm.stamp()
     }
 
