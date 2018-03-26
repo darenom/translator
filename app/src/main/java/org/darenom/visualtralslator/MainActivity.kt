@@ -5,8 +5,10 @@ import android.app.Activity
 import android.arch.lifecycle.ViewModelProviders
 import android.content.*
 import android.graphics.Bitmap
+import android.net.ConnectivityManager
 import android.os.Bundle
 import android.provider.MediaStore
+import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.support.v7.app.AppCompatActivity
@@ -31,17 +33,24 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     private lateinit var vm: MainViewModel
     var tts: TextToSpeech? = null
 
-    var currentLocale: Locale? = null
+    private val isNetworkAvailable: Boolean
+        get() {
+            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val activeNetworkInfo = connectivityManager.activeNetworkInfo
+            return activeNetworkInfo != null && activeNetworkInfo.isConnected
+        }
+
+    private var currentLocale: Locale? = null
     var allCodes: Array<String>? = null
     var allFlags: Array<String>? = null
 
     val list = ArrayList<String>()
     var voiceList = ArrayList<String>()
 
-    var lang1: String? = null
-    var lang2: String? = null
+    private var lang1: String? = null
+    private var lang2: String? = null
 
-    val ttsListener = TextToSpeech.OnInitListener {
+    private val ttsListener = TextToSpeech.OnInitListener {
         if (it == TextToSpeech.SUCCESS) {
             if (vm.ttsList.isEmpty())
                 tts?.availableLanguages?.forEach {
@@ -51,44 +60,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             onReady()
         }
     }
-
-    private fun onReady() {
-
-        // languages spinners
-        spin_lang_1.adapter = SpinAdapter(this, R.layout.spinner_item, vm.ttsList.keys.toTypedArray())
-        spin_lang_1.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, pos: Int, id: Long) {
-                lang1 = vm.ttsList.values.elementAt(pos)
-                vm.sp1.value = pos
-            }
-
-            override fun onNothingSelected(parent: AdapterView<out Adapter>?) {}
-        }
-
-        spin_lang_2.adapter = SpinAdapter(this, R.layout.spinner_item, vm.ttsList.keys.toTypedArray())
-        spin_lang_2.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, pos: Int, id: Long) {
-                lang2 = vm.ttsList.values.elementAt(pos)
-                vm.sp2.value = pos
-            }
-
-            override fun onNothingSelected(parent: AdapterView<out Adapter>?) {}
-        }
-
-        spin_lang_1.setSelection(vm.sp1.value!!)
-        spin_lang_2.setSelection(vm.sp2.value!!)
-        edit.setText(vm.edt.value!!)
-        text.text = vm.txt.value!!
-
-    }
-
-    override fun onPause() {
-        super.onPause()
-        vm.edt.value = edit.text.toString()
-        vm.txt.value = text.text.toString()
-        vm.stamp()
-    }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -161,6 +132,36 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 REQUEST_CHECK_TTS_DATA)
     }
 
+    private fun onReady() {
+
+        // languages spinners
+        spin_lang_1.adapter = SpinAdapter(this, R.layout.spinner_item, vm.ttsList.keys.toTypedArray())
+        spin_lang_1.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, pos: Int, id: Long) {
+                lang1 = vm.ttsList.values.elementAt(pos)
+                vm.sp1.value = pos
+            }
+
+            override fun onNothingSelected(parent: AdapterView<out Adapter>?) {}
+        }
+
+        spin_lang_2.adapter = SpinAdapter(this, R.layout.spinner_item, vm.ttsList.keys.toTypedArray())
+        spin_lang_2.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, pos: Int, id: Long) {
+                lang2 = vm.ttsList.values.elementAt(pos)
+                vm.sp2.value = pos
+            }
+
+            override fun onNothingSelected(parent: AdapterView<out Adapter>?) {}
+        }
+
+        spin_lang_1.setSelection(vm.sp1.value!!)
+        spin_lang_2.setSelection(vm.sp2.value!!)
+        edit.setText(vm.edt.value!!)
+        text.text = vm.txt.value!!
+
+    }
+
     override fun onClick(v: View?) {
         if (null != v)
             when (v.id) {
@@ -175,10 +176,9 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     }
                 }
                 actionHear.id -> {
-                    val hearLocale = Locale(lang1)
                     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                     intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, hearLocale)
+                    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale(lang1))
                     intent.putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.main_speech_prompt))
                     try {
                         startActivityForResult(intent, REQUEST_CODE_SPEECH_INPUT)
@@ -188,42 +188,37 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     }
 
                 }
-                actionTranslate.id -> {
-                    translate(edit.text.toString(),
-                            lang2!!,
-                            lang1!!)
-                }
+                actionTranslate.id -> { translate(vm.edt.value!!, lang2!!, lang1!!) }
                 actionSwap.id -> {
-                    val f_ref = spin_lang_1.selectedItemPosition
-                    val l_ref = spin_lang_2.selectedItemPosition
-                    spin_lang_1.setSelection(0)
-                    spin_lang_2.setSelection(f_ref)
-                    spin_lang_1.setSelection(l_ref)
+                    val r1 = spin_lang_1.selectedItemPosition
+                    val r2 = spin_lang_2.selectedItemPosition
+                    val e = vm.edt.value!!
+                    val t = vm.txt.value!!
+                    vm.edt.value = t
+                    vm.txt.value = e
+                    spin_lang_2.setSelection(r1)
+                    spin_lang_1.setSelection(r2)
 
                 }
                 actionSay.id -> {
-                    val saylocale = Locale(lang1)
-                    tts?.language = saylocale
+                    tts?.language = Locale(lang1)
                     tts?.speak(text.text.toString(), TextToSpeech.QUEUE_FLUSH, null)
                 }
 
             }
     }
 
-
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == Activity.RESULT_OK) {
             val extras = data.extras
             val imageBitmap = extras!!.get("data") as Bitmap
             val decode = decode(imageBitmap)
-            edit.setText(decode)
-            previewLayout.visibility = View.GONE
+            vm.edt.value = decode
         }
         if (requestCode == REQUEST_CODE_SPEECH_INPUT) {
             if (resultCode == Activity.RESULT_OK) {
-                actionHear.visibility = View.VISIBLE
                 val result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                edit.setText(result[0])
+                vm.edt.value = result[0]
             }
         }
         if (requestCode == REQUEST_CHECK_TTS_DATA) {
@@ -236,6 +231,13 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 startActivity(installIntent)
             }
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        vm.edt.value = edit.text.toString()
+        vm.txt.value = text.text.toString()
+        vm.stamp()
     }
 
     /**
@@ -271,45 +273,45 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     private fun translate(textToTranslate: String, from: String, to: String) {
 
-        web.settings.javaScriptEnabled = true
-        web.webViewClient = object : WebViewClient() {
+        if (isNetworkAvailable) {
+            val wizz = WebView(this)
+            wizz.settings.javaScriptEnabled = true
+            wizz.webViewClient = object : WebViewClient() {
 
-            override fun onPageFinished(view: WebView, url: String) {
-                super.onPageFinished(view, url)
-                web.evaluateJavascript(
-                        "(function() { return (document.getElementsByClassName('t0')[0].innerHTML); })();",
-                        { html ->
-                            actionTranslate.visibility = View.VISIBLE
-                            if (!html.contentEquals("ul"))
-                                text.text = html.substring(1, html.length - 1)
-                            else
-                                Toast.makeText(applicationContext, getString(R.string.no_net), Toast.LENGTH_SHORT).show()
-                        })
+                override fun onPageFinished(view: WebView, url: String) {
+                    super.onPageFinished(view, url)
+                    wizz.evaluateJavascript(
+                            "(function() { return (document.getElementsByClassName('t0')[0].innerHTML); })();",
+                            { html -> vm.txt.value = html.substring(1, html.length - 1); wizz.destroy() })
+                }
+
+                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                    super.onReceivedError(view, request, error)
+                }
             }
 
-            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-                super.onReceivedError(view, request, error)
-                actionTranslate.visibility = View.VISIBLE
+            var url: String? = null
+            try {
+                url = ("https://translate.google.com/m?hl=" + currentLocale!!.language
+                        + "&sl=" + from + "&tl=" + to
+                        + "&ie=UTF-8&prev=_m&q=" + URLEncoder.encode(textToTranslate, "utf-8"))
+
+            } catch (e: UnsupportedEncodingException) {
+                e.printStackTrace()
+            } finally {
+                wizz.loadUrl(url)
             }
+        } else  {
+            startActivity(Intent(Settings.ACTION_WIFI_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
         }
-        var url: String? = null
-        try {
-            url = ("https://translate.google.com/m?hl=" + currentLocale!!.language
-                    + "&sl=" + from + "&tl=" + to
-                    + "&ie=UTF-8&prev=_m&q=" + URLEncoder.encode(textToTranslate, "utf-8"))
-
-        } catch (e: UnsupportedEncodingException) {
-            e.printStackTrace()
-        }
-
-        web.loadUrl(url)
     }
 
 
     companion object {
-        const val REQUEST_IMAGE_CAPTURE = 1
-        const val REQUEST_CODE_SPEECH_INPUT = 2
-        const val REQUEST_CHECK_TTS_DATA = 3
+        const val REQUEST_IMAGE_CAPTURE = 101
+        const val REQUEST_CODE_SPEECH_INPUT = 102
+        const val REQUEST_CHECK_TTS_DATA = 103
+
     }
 
     inner class SpinAdapter(context: Context, resource: Int, refs: Array<String>) : ArrayAdapter<String>(context, resource) {
