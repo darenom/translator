@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="screen_border">3dp</dimen>
 
     <dimen name="main_text_normal">18sp</dimen>
     <dimen name="main_text_small">10sp</dimen>

@@ -10,8 +10,6 @@ import android.provider.MediaStore
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.support.v7.app.AppCompatActivity
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -77,13 +75,10 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             override fun onNothingSelected(parent: AdapterView<out Adapter>?) {}
         }
 
-        edit.addTextChangedListener(object: TextWatcher {
-            override fun afterTextChanged(p0: Editable?) {}
-            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
-            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-                vm.edt.value = p0.toString()
-            }
-        })
+        spin_lang_1.setSelection(vm.sp1.value!!)
+        spin_lang_2.setSelection(vm.sp2.value!!)
+        edit.setText(vm.edt.value!!)
+        text.text = vm.txt.value!!
 
     }
 
@@ -338,12 +333,20 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         }
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+
             val view: View? = convertView
                     ?: mInflater?.inflate(R.layout.spinner_item, parent, false)
-            view?.findViewById<ImageView>(R.id.img)?.background = context.resources.getDrawable(
-                    context.resources.getIdentifier(allFlags!![index[position]],
-                            "drawable", context.packageName))
+
+            val drw = context.resources.getDrawable(
+                    context.resources.getIdentifier(
+                            allFlags!![index[position]],
+                            "drawable",
+                            context.packageName))
+
+            view?.findViewById<TextView>(R.id.txt)?.setCompoundDrawablesWithIntrinsicBounds(drw, null, null, null)
+
             view?.findViewById<TextView>(R.id.txt)?.text = allCodes!![index[position]]
+
             return view!!
         }
 
