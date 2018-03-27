@@ -6,20 +6,25 @@ import android.arch.lifecycle.ViewModelProviders
 import android.content.*
 import android.graphics.Bitmap
 import android.net.ConnectivityManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.support.v7.app.AppCompatActivity
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.*
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.vision.Frame
 import com.google.android.gms.vision.text.TextRecognizer
 import kotlinx.android.synthetic.main.activity_main.*
@@ -63,13 +68,34 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.activity_main)
         vm = ViewModelProviders.of(this).get(MainViewModel::class.java)
         allCodes = resources.getStringArray(R.array.country_code)
         allFlags = resources.getStringArray(R.array.country_drawable)
         subscribeUI()
-        setUp()
 
+        if (checkPlayServices()) {
+            setUp()
+
+        } else {
+
+            Toast.makeText(this, getString(R.string.no_gg), Toast.LENGTH_LONG).show()
+            finish()
+        }
+
+    }
+
+    private fun checkPlayServices(): Boolean {
+        val s = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this)
+        return when (s) {
+            ConnectionResult.SUCCESS -> {
+                setUp(); true
+            }
+            else -> {
+                false
+            }
+        }
     }
 
     private fun subscribeUI() {
@@ -106,6 +132,13 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         // all available languages
         if (vm.ttsList.isEmpty())
             Locale.getAvailableLocales().forEach { if (!list.contains(it.country)) list.add(it.country) }
+
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val ims = imm.currentInputMethodSubtype
+        val lang = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+            ims.languageTag
+        else
+            ims.locale
 
         // all languages that can be heard
         val detailsIntent = Intent()
@@ -170,6 +203,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     vm.txt.value = ""
                 }
                 actionCamera.id -> {
+                    // permission handled by intent
                     val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
                     if (takePictureIntent.resolveActivity(packageManager) != null) {
                         startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
@@ -188,7 +222,9 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     }
 
                 }
-                actionTranslate.id -> { translate(vm.edt.value!!, lang2!!, lang1!!) }
+                actionTranslate.id -> {
+                    translate(vm.edt.value!!, lang2!!, lang1!!)
+                }
                 actionSwap.id -> {
                     val r1 = spin_lang_1.selectedItemPosition
                     val r2 = spin_lang_2.selectedItemPosition
@@ -208,17 +244,21 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == Activity.RESULT_OK) {
-            val extras = data.extras
-            val imageBitmap = extras!!.get("data") as Bitmap
-            val decode = decode(imageBitmap)
-            vm.edt.value = decode
+            if (null != data) {
+                val extras = data.extras
+                val imageBitmap = extras!!.get("data") as Bitmap
+                val decode = decode(imageBitmap)
+                vm.edt.value = decode
+            }
         }
         if (requestCode == REQUEST_CODE_SPEECH_INPUT) {
             if (resultCode == Activity.RESULT_OK) {
-                val result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                vm.edt.value = result[0]
+                if (null != data) {
+                    val result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                    vm.edt.value = result[0]
+                }
             }
         }
         if (requestCode == REQUEST_CHECK_TTS_DATA) {
@@ -301,7 +341,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             } finally {
                 wizz.loadUrl(url)
             }
-        } else  {
+        } else {
             startActivity(Intent(Settings.ACTION_WIFI_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
         }
     }

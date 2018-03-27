@@ -39,5 +39,5 @@ dependencies {
     //databinding
     kapt 'com.android.databinding:compiler:3.1.0'
 
-    implementation 'com.google.android.gms:play-services-vision:12.0.0'
+    implementation 'com.google.android.gms:play-services-vision:11.4.2'
 }

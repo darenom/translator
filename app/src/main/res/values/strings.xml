@@ -1,11 +1,13 @@
 <resources>
     <string name="app_name">VisualTralslator</string>
 
+    <string name="no_gg">Requires GooglePlayServices</string>
+
     <!-- Main Activity components -->
     <string name="main_edit_hint">Tap here to edit \n\t\t or enter your text.</string>
     <string name="main_text_hint">Tranlated text here.</string>
     <string name="main_button_clear">Clear</string>
-    <string name="main_speech_prompt">Say something&#8230;</string>
+    <string name="main_speech_prompt">Say something</string>
 
 
     <string name="main_low_storage_error">Dependencies cannot be downloaded due to low device storage</string>
