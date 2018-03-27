@@ -26,15 +26,18 @@ android {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jre7:1.2.31"
-    implementation 'com.android.support:appcompat-v7:27.1.0'
-    implementation 'com.android.support:design:27.1.0'
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jre7:$rootProject.ext.kotlinVersion"
+
+    implementation "com.android.support:appcompat-v7:$rootProject.ext.androidSupportVersion"
+    implementation "com.android.support:design:$rootProject.ext.androidSupportVersion"
 
     //view model & live data
-    implementation 'android.arch.lifecycle:extensions:1.1.1'
-    kapt 'android.arch.lifecycle:compiler:1.1.1'
+    implementation "android.arch.lifecycle:extensions:$rootProject.ext.archLifecycleVersion"
+    kapt "android.arch.lifecycle:compiler:$rootProject.ext.archLifecycleVersion"
+
     //databinding
-    kapt 'com.android.databinding:compiler:3.0.1'
+    kapt 'com.android.databinding:compiler:3.1.0'
 
     implementation 'com.google.android.gms:play-services-vision:12.0.0'
 }
