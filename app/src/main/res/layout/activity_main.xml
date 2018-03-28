@@ -1,130 +1,177 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_margin="@dimen/screen_border"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <View
-        android:id="@+id/sep"
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_centerVertical="true"
-        android:layout_marginEnd="@dimen/main_icon"
-        android:layout_marginStart="@dimen/main_icon"
-        android:background="@android:color/darker_gray" />
+    <data>
 
-    <EditText
-        android:id="@+id/edit"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_above="@+id/sep"
-        android:layout_alignParentTop="true"
-        android:background="@android:color/transparent"
-        android:gravity="center_vertical"
-        android:hint="@string/main_edit_hint"
-        android:inputType="textAutoCorrect"
-        android:padding="@dimen/main_bar_marg"
-        android:text=""
-        android:textSize="@dimen/main_text_normal" />
+        <variable
+            name="sp1"
+            type="Integer"/>
 
-    <TextView
-        android:id="@+id/text"
+        <variable
+            name="sp2"
+            type="Integer"/>
+
+        <variable
+            name="one"
+            type="String"/>
+
+        <variable
+            name="two"
+            type="String"/>
+
+        <variable
+            name="loading"
+            type="Boolean"/>
+
+    </data>
+
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_alignParentBottom="true"
-        android:layout_below="@id/sep"
-        android:gravity="center_vertical"
-        android:hint="@string/main_text_hint"
-        android:padding="@dimen/main_bar_marg"
-        android:text=""
-        android:textSize="@dimen/main_text_normal" />
+        android:layout_margin="@dimen/screen_border">
+
+        <View
+            android:id="@+id/sep"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@+id/actionSwap"
+            android:layout_toStartOf="@+id/actionTranslate"
+            android:background="@android:color/darker_gray" />
+
+        <EditText
+            android:id="@+id/edit"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_above="@+id/sep"
+            android:layout_alignParentTop="true"
+            android:background="@android:color/transparent"
+            android:gravity="center_vertical"
+            android:hint="@string/main_edit_hint"
+            android:inputType="textAutoCorrect"
+            android:padding="@dimen/screen_border"
+            android:text="@{two}"
+            android:textSize="@dimen/main_text_normal" />
+
+        <TextView
+            android:id="@+id/text"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_alignParentBottom="true"
+            android:layout_below="@id/sep"
+            android:gravity="center_vertical"
+            android:hint="@string/main_text_hint"
+            android:padding="@dimen/screen_border"
+            android:text="@{one}"
+            android:textSize="@dimen/main_text_normal" />
 
 
-    <TextView
-        android:id="@+id/actionClear"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:background="@android:color/transparent"
-        android:gravity="start|center"
-        android:onClick="onClick"
-        android:text="@string/main_button_clear"
-        android:textColor="@android:color/darker_gray"
-        tools:ignore="RelativeOverlap" />
+        <ImageView
+            android:id="@+id/actionClear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:src="@drawable/ic_clear_black_24dp"
+            android:background="@drawable/roundcorner"
+            android:padding="@dimen/clear_padding"
+            android:gravity="center"
+            android:onClick="onClick"
+            tools:ignore="ContentDescription,RelativeOverlap" />
 
-    <ImageButton
-        android:id="@+id/actionCamera"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="@dimen/main_text_normal"
-        android:layout_toStartOf="@+id/actionHear"
-        android:background="@drawable/ic_camera_black_24dp"
-        android:onClick="onClick"
-        tools:ignore="ContentDescription,RelativeOverlap" />
+        <ImageButton
+            android:id="@+id/actionCamera"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/main_text_normal"
+            android:layout_toStartOf="@+id/actionHear"
+            android:src="@drawable/ic_camera_black_24dp"
+            android:background="@drawable/roundcorner"
+            android:onClick="onClick"
+            tools:ignore="ContentDescription,RelativeOverlap" />
 
-    <ImageButton
-        android:id="@+id/actionHear"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:background="@drawable/ic_hearing_black_24dp"
-        android:onClick="onClick"
-        tools:ignore="ContentDescription" />
+        <ImageButton
+            android:id="@+id/actionHear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/roundcorner"
+            android:src="@drawable/ic_hearing_black_24dp"
+            android:onClick="onClick"
+            tools:ignore="ContentDescription" />
 
-    <ImageButton
-        android:id="@+id/actionTranslate"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_centerVertical="true"
-        android:background="@drawable/ic_translate_black_24dp"
-        android:onClick="onClick"
-        tools:ignore="ContentDescription,RelativeOverlap" />
+        <ImageButton
+            android:id="@+id/actionTranslate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/roundcorner"
+            android:src="@drawable/ic_translate_black_24dp"
+            android:onClick="onClick"
+            tools:ignore="ContentDescription,RelativeOverlap" />
 
-    <ImageButton
-        android:id="@+id/actionKeyboard"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentBottom="true"
-        android:layout_centerVertical="true"
-        android:background="@drawable/ic_keyboard_black_24dp"
-        android:onClick="onClick"
-        tools:ignore="ContentDescription,RelativeOverlap" />
+        <ImageButton
+            android:id="@+id/actionKeyboard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/roundcorner"
+            android:src="@drawable/ic_keyboard_black_24dp"
+            android:onClick="onClick"
+            tools:ignore="ContentDescription,RelativeOverlap" />
 
-    <ImageButton
-        android:id="@+id/actionSay"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentEnd="true"
-        android:background="@drawable/ic_speaker_phone_black_24dp"
-        android:onClick="onClick" />
+        <ImageButton
+            android:id="@+id/actionSay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/roundcorner"
+            android:src="@drawable/ic_speaker_phone_black_24dp"
+            android:onClick="onClick"
+            tools:ignore="ContentDescription" />
 
-    <ImageButton
-        android:id="@+id/actionSwap"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_centerVertical="true"
-        android:background="@drawable/ic_swap_vert_black_24dp"
-        android:onClick="onClick"
-        tools:ignore="ContentDescription" />
+        <ImageButton
+            android:id="@+id/actionSwap"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/roundcorner"
+            android:src="@drawable/ic_swap_vert_black_24dp"
+            android:onClick="onClick"
+            tools:ignore="ContentDescription" />
 
-    <Spinner
-        android:id="@+id/spin_lang_1"
-        style="@style/spinner_no_arrow"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/actionSwap"/>
+        <Spinner
+            android:id="@+id/spin_lang_1"
+            style="@style/spinner_no_arrow"
+            android:selectedItemPosition="@{sp1}"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/actionSwap" />
 
-    <Spinner
-        android:id="@+id/spin_lang_2"
-        style="@style/spinner_no_arrow"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_above="@id/actionSwap" />
+        <Spinner
+            android:id="@+id/spin_lang_2"
+            style="@style/spinner_no_arrow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_above="@id/actionSwap" />
 
-</RelativeLayout>
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:clickable="true"
+            visibleGone="@{loading}"
+            android:layout_height="match_parent"
+            tools:ignore="KeyboardInaccessibleWidget">
+
+            <ProgressBar
+                android:layout_centerInParent="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </RelativeLayout>
+    </RelativeLayout>
+</layout>
 

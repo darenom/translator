@@ -1,10 +1,13 @@
 <resources>
-    <string name="app_name">VisualTralslator</string>
+    <string name="app_name">Translator</string>
 
     <string name="no_gg">Requires GooglePlayServices</string>
+    <string name="missing_language">Language is missing.\nwould you like to get it?</string>
+    <string name="missing_tts">TextToSpeech is missing.\nwould you like to get it?</string>
+    <string name="ok">OK</string>
 
     <!-- Main Activity components -->
-    <string name="main_edit_hint">Tap here to edit \n\t\t or enter your text.</string>
+    <string name="main_edit_hint">Tap here to edit \n\t\t your text.</string>
     <string name="main_text_hint">Tranlated text here.</string>
     <string name="main_button_clear">Clear</string>
     <string name="main_speech_prompt">Say something</string>

@@ -13,7 +13,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private var settings: SharedPreferences? = null
 
-    var ttsList = HashMap<String, String>()
+    var allCodes: Array<String>? = null
+    var allFlags: Array<String>? = null
+    var mList = HashMap<String, MainActivity.Refs>()
 
     var sp1 = MutableLiveData<Int>()
     var sp2 = MutableLiveData<Int>()

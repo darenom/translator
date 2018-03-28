@@ -3,31 +3,40 @@ package org.darenom.visualtralslator;
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.arch.lifecycle.ViewModelProviders
-import android.content.*
+import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.databinding.BindingAdapter
+import android.databinding.DataBindingUtil
 import android.graphics.Bitmap
 import android.net.ConnectivityManager
-import android.os.Build
+import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.provider.MediaStore.EXTRA_OUTPUT
 import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.support.v7.app.AppCompatActivity
-import android.util.Log
-import android.view.LayoutInflater
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
-import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.*
+import android.widget.AdapterView
+import android.widget.Toast
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.vision.Frame
 import com.google.android.gms.vision.text.TextRecognizer
 import kotlinx.android.synthetic.main.activity_main.*
+import org.darenom.visualtralslator.databinding.ActivityMainBinding
+import java.io.File
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 import java.util.*
@@ -35,9 +44,55 @@ import kotlin.collections.ArrayList
 
 class MainActivity : AppCompatActivity(), View.OnClickListener {
 
-    private lateinit var vm: MainViewModel
-    var tts: TextToSpeech? = null
+    data class Refs(var say: String? = null, var hear: String? = null)
 
+    private lateinit var vm: MainViewModel
+    private lateinit var binding: ActivityMainBinding
+
+    var tts: TextToSpeech? = null
+    private var currentLocale: Locale? = null
+    private val ttsListener = TextToSpeech.OnInitListener {
+        if (it == TextToSpeech.SUCCESS) {
+            if (null == vm.allCodes) {
+                tts?.availableLanguages?.forEach {
+                    if (!vm.mList.containsKey(it.country))
+                        if (null == vm.mList[it.country])
+                            vm.mList[it.country] = Refs(it.language, null)
+                        else
+                            vm.mList[it.country] = Refs(it.language, vm.mList[it.country]!!.hear)
+                    else
+                        vm.mList[it.country] = Refs(it.language, vm.mList[it.country]!!.hear)
+                }
+            }
+            tts?.setOnUtteranceProgressListener(ttsUtteranceProgressListener)
+            onReady()
+        }
+    }
+    private val itemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onNothingSelected(parent: AdapterView<*>?) {
+            // do nothing
+        }
+
+        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+            when (parent?.id) {
+                spin_lang_1.id -> vm.sp1.value = position
+                spin_lang_2.id -> vm.sp2.value = position
+            }
+        }
+    }
+    private val ttsUtteranceProgressListener = object : UtteranceProgressListener() {
+        override fun onStart(utteranceId: String?) {
+            binding.loading = false
+        }
+
+        override fun onDone(utteranceId: String?) {
+            binding.loading = false
+        }
+
+        override fun onError(utteranceId: String?) {
+            binding.loading = false
+        }
+    }
     private val isNetworkAvailable: Boolean
         get() {
             val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -45,112 +100,67 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             return activeNetworkInfo != null && activeNetworkInfo.isConnected
         }
 
-    private var currentLocale: Locale? = null
-    var allCodes: Array<String>? = null
-    var allFlags: Array<String>? = null
-
-    val list = ArrayList<String>()
-    var voiceList = ArrayList<String>()
-
-    private var lang1: String? = null
-    private var lang2: String? = null
-
-    private val ttsListener = TextToSpeech.OnInitListener {
-        if (it == TextToSpeech.SUCCESS) {
-            if (vm.ttsList.isEmpty())
-                tts?.availableLanguages?.forEach {
-                    if (!vm.ttsList.containsKey(it.country))
-                        vm.ttsList[it.country] = it.language
-                }
-            onReady()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        setContentView(R.layout.activity_main)
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         vm = ViewModelProviders.of(this).get(MainViewModel::class.java)
-        allCodes = resources.getStringArray(R.array.country_code)
-        allFlags = resources.getStringArray(R.array.country_drawable)
-        subscribeUI()
-
-        if (checkPlayServices()) {
-            setUp()
-
-        } else {
-
-            Toast.makeText(this, getString(R.string.no_gg), Toast.LENGTH_LONG).show()
-            finish()
-        }
-
     }
 
-    private fun checkPlayServices(): Boolean {
+    override fun onStart() {
+        super.onStart()
+        checkPlayServices()
+    }
+
+    private fun checkPlayServices() {
         val s = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this)
         return when (s) {
             ConnectionResult.SUCCESS -> {
-                setUp(); true
+                setUp()
             }
             else -> {
-                false
+                Toast.makeText(this, getString(R.string.no_gg), Toast.LENGTH_LONG).show()
+                finish()
             }
         }
-    }
-
-    private fun subscribeUI() {
-
-        vm.sp1.observe(this, android.arch.lifecycle.Observer {
-            if (null != it) {
-                spin_lang_1.setSelection(it)
-            }
-        })
-
-        vm.sp2.observe(this, android.arch.lifecycle.Observer {
-            if (null != it) {
-                spin_lang_2.setSelection(it)
-            }
-        })
-
-        vm.edt.observe(this, android.arch.lifecycle.Observer {
-            if (null != it) {
-                edit.setText(it)
-            }
-        })
-
-        vm.txt.observe(this, android.arch.lifecycle.Observer {
-            if (null != it) {
-                text.text = it
-            }
-        })
     }
 
     private fun setUp() {
 
         currentLocale = Locale.getDefault()
 
-        // all available languages
-        if (vm.ttsList.isEmpty())
-            Locale.getAvailableLocales().forEach { if (!list.contains(it.country)) list.add(it.country) }
+        if (null == vm.allCodes) {
+            vm.allCodes = resources.getStringArray(R.array.country_code)
+            vm.allFlags = resources.getStringArray(R.array.country_drawable)
 
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        val ims = imm.currentInputMethodSubtype
-        val lang = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
-            ims.languageTag
-        else
-            ims.locale
-
-        // all languages that can be heard
-        val detailsIntent = Intent()
-        if (vm.ttsList.isEmpty())
+            // all languages that can be heard
+            val detailsIntent = Intent(RecognizerIntent.ACTION_GET_LANGUAGE_DETAILS)
             sendOrderedBroadcast(
                     detailsIntent,
                     null,
                     object : BroadcastReceiver() {
                         override fun onReceive(context: Context?, intent: Intent?) {
+
+                            // get
+                            var voiceList = ArrayList<String>()
                             val results = getResultExtras(true)
                             if (results.containsKey(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES))
                                 voiceList = results.getStringArrayList(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES)
+
+                            // map
+                            voiceList.forEach {
+                                val t = it.split("-")
+                                val key = t[t.size - 1]
+                                if (!vm.mList.containsKey(key))
+                                    if (null == vm.mList[key])
+                                        vm.mList[key] = Refs(null, it)
+                            }
+
+                            // then
+                            // all languages that can be said
+                            startActivityForResult(
+                                    Intent().setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA),
+                                    REQUEST_CHECK_TTS_DATA)
 
                         }
                     },
@@ -158,41 +168,61 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     Activity.RESULT_OK,
                     null,
                     null)
-
-        // all languages that can be said
-        startActivityForResult(
-                Intent().setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA),
-                REQUEST_CHECK_TTS_DATA)
+        } else {
+            // restart tts
+            startActivityForResult(
+                    Intent().setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA),
+                    REQUEST_CHECK_TTS_DATA)
+        }
     }
 
     private fun onReady() {
 
-        // languages spinners
-        spin_lang_1.adapter = SpinAdapter(this, R.layout.spinner_item, vm.ttsList.keys.toTypedArray())
-        spin_lang_1.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, pos: Int, id: Long) {
-                lang1 = vm.ttsList.values.elementAt(pos)
-                vm.sp1.value = pos
+        spin_lang_1.adapter = SpinAdapter(this, R.layout.spinner_item, vm.mList.keys.toTypedArray(), vm.allCodes!!, vm.allFlags!!)
+        spin_lang_2.adapter = SpinAdapter(this, R.layout.spinner_item, vm.mList.keys.toTypedArray(), vm.allCodes!!, vm.allFlags!!)
+
+        spin_lang_1.onItemSelectedListener = itemSelectedListener
+        spin_lang_2.onItemSelectedListener = itemSelectedListener
+
+        edit.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {}
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                vm.edt.value = s.toString()
+            }
+        })
+        text.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {}
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                vm.txt.value = s.toString()
             }
 
-            override fun onNothingSelected(parent: AdapterView<out Adapter>?) {}
-        }
+        })
 
-        spin_lang_2.adapter = SpinAdapter(this, R.layout.spinner_item, vm.ttsList.keys.toTypedArray())
-        spin_lang_2.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, pos: Int, id: Long) {
-                lang2 = vm.ttsList.values.elementAt(pos)
-                vm.sp2.value = pos
+        vm.sp1.observe(this, android.arch.lifecycle.Observer {
+            if (null != it) {
+                binding.sp1 = it
             }
-
-            override fun onNothingSelected(parent: AdapterView<out Adapter>?) {}
-        }
+        })
+        vm.sp2.observe(this, android.arch.lifecycle.Observer {
+            if (null != it) {
+                binding.sp2 = it
+            }
+        })
+        vm.edt.observe(this, android.arch.lifecycle.Observer {
+            if (null != it) {
+                binding.two = it
+            }
+        })
+        vm.txt.observe(this, android.arch.lifecycle.Observer {
+            if (null != it) {
+                binding.one = it
+            }
+        })
 
         spin_lang_1.setSelection(vm.sp1.value!!)
         spin_lang_2.setSelection(vm.sp2.value!!)
-        edit.setText(vm.edt.value!!)
-        text.text = vm.txt.value!!
-
     }
 
     override fun onClick(v: View?) {
@@ -202,20 +232,26 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     vm.edt.value = ""
                     vm.txt.value = ""
                 }
+                actionKeyboard.id -> {
+                    (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                            .showInputMethodPicker()
+                }
                 actionCamera.id -> {
+                    binding.loading = true
                     // permission handled by intent
-                    val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-                    if (takePictureIntent.resolveActivity(packageManager) != null) {
-                        startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
+                    val i = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+                    if (i.resolveActivity(packageManager) != null) {
+                        startActivityForResult(i, REQUEST_IMAGE_CAPTURE)
                     }
                 }
                 actionHear.id -> {
-                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale(lang1))
-                    intent.putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.main_speech_prompt))
+                    binding.loading = true
+                    val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                    i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    i.putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.main_speech_prompt))
+                    i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, vm.mList.values.elementAt(vm.sp2.value!!).hear)
                     try {
-                        startActivityForResult(intent, REQUEST_CODE_SPEECH_INPUT)
+                        startActivityForResult(i, REQUEST_CODE_SPEECH_INPUT)
                     } catch (a: ActivityNotFoundException) {
                         Toast.makeText(applicationContext,
                                 getString(R.string.main_speech_not_supported), Toast.LENGTH_SHORT).show()
@@ -223,7 +259,12 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
                 }
                 actionTranslate.id -> {
-                    translate(vm.edt.value!!, lang2!!, lang1!!)
+                    translate(
+                            vm.edt.value!!,
+                            vm.mList.values.elementAt(vm.sp2.value!!).say
+                                    ?: vm.mList.values.elementAt(vm.sp2.value!!).hear!!.split("-")[0],
+                            vm.mList.values.elementAt(vm.sp1.value!!).say
+                                    ?: vm.mList.values.elementAt(vm.sp1.value!!).hear!!.split("-")[0])
                 }
                 actionSwap.id -> {
                     val r1 = spin_lang_1.selectedItemPosition
@@ -237,8 +278,27 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
                 }
                 actionSay.id -> {
-                    tts?.language = Locale(lang1)
-                    tts?.speak(text.text.toString(), TextToSpeech.QUEUE_FLUSH, null)
+
+                    if (null == vm.mList.values.elementAt(vm.sp1.value!!).say) {
+
+                        val b = Bundle()
+                        b.putString("action", "com.android.settings.TTS_SETTINGS")
+                        b.putInt("message", R.string.missing_language)
+
+                        val d = GotoDialog()
+                        d.arguments = b
+                        d.show(supportFragmentManager, this.javaClass.simpleName)
+
+                    } else {
+
+                        binding.loading = true
+
+                        tts?.language = Locale(
+                                vm.mList.values.elementAt(vm.sp1.value!!).say
+                                        ?: vm.mList.values.elementAt(vm.sp1.value!!).hear!!.split("-")[0])
+
+                        tts?.speak(vm.txt.value!!, TextToSpeech.QUEUE_FLUSH, null, vm.txt.value!!.hashCode().toString())
+                    }
                 }
 
             }
@@ -246,12 +306,12 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == Activity.RESULT_OK) {
-            if (null != data) {
-                val extras = data.extras
-                val imageBitmap = extras!!.get("data") as Bitmap
-                val decode = decode(imageBitmap)
-                vm.edt.value = decode
-            }
+            val extras = data?.extras
+            val imageBitmap = extras!!.get("data") as Bitmap
+            val decode = decode(imageBitmap)
+            vm.edt.value = decode
+
+            binding.loading = false
         }
         if (requestCode == REQUEST_CODE_SPEECH_INPUT) {
             if (resultCode == Activity.RESULT_OK) {
@@ -260,60 +320,60 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     vm.edt.value = result[0]
                 }
             }
+            binding.loading = false
         }
         if (requestCode == REQUEST_CHECK_TTS_DATA) {
             if (resultCode == TextToSpeech.Engine.CHECK_VOICE_DATA_PASS) {
                 tts = TextToSpeech(this, ttsListener)
             } else {
                 // No engine found, go to store
-                val installIntent = Intent()
-                installIntent.action = TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA
-                startActivity(installIntent)
+                val b = Bundle()
+                b.putString("action", TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)
+                b.putInt("message", R.string.missing_tts)
+
+                val d = GotoDialog()
+                d.arguments = b
+                d.show(supportFragmentManager, this.javaClass.simpleName)
             }
         }
     }
 
     override fun onPause() {
         super.onPause()
-        vm.edt.value = edit.text.toString()
-        vm.txt.value = text.text.toString()
         vm.stamp()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        tts?.stop()
+        tts?.shutdown()
     }
 
     /**
      * Detect texts in image
-     * should download dependencies automatically
-     * may need a restart?
      */
     private fun decode(imageBitmap: Bitmap): String {
         var decode = ""
         val textRecognizer = TextRecognizer.Builder(this).build()
         val frame = Frame.Builder().setBitmap(imageBitmap).build()
-        val texts = textRecognizer.detect(frame)
-        if (!textRecognizer.isOperational) {
-            val lowstorageFilter = IntentFilter(Intent.ACTION_DEVICE_STORAGE_LOW)
-            val hasLowStorage = registerReceiver(null, lowstorageFilter) != null
-
-            if (hasLowStorage) {
-                Toast.makeText(this, R.string.main_low_storage_error, Toast.LENGTH_LONG).show()
-            }
-        }
-        for (i in 0 until texts.size()) {
-            val text = texts.valueAt(i)
-            decode = decode + text.value + "\n"
+        val txts = textRecognizer.detect(frame)
+        for (i in 0 until txts.size()) {
+            val txt = txts.valueAt(i)
+            decode = decode + txt.value + "\n"
         }
         return decode
+
     }
 
     /**
-     * Sends textToTranslate to translate to google trad, sets answer in view
-     *
-     * @param textToTranslate to translate
+     * use GoogleTranslate through webview
+     * todo api
      */
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     private fun translate(textToTranslate: String, from: String, to: String) {
 
         if (isNetworkAvailable) {
+            binding.loading = true
             val wizz = WebView(this)
             wizz.settings.javaScriptEnabled = true
             wizz.webViewClient = object : WebViewClient() {
@@ -322,11 +382,16 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     super.onPageFinished(view, url)
                     wizz.evaluateJavascript(
                             "(function() { return (document.getElementsByClassName('t0')[0].innerHTML); })();",
-                            { html -> vm.txt.value = html.substring(1, html.length - 1); wizz.destroy() })
+                            { html ->
+                                vm.txt.value = html.substring(1, html.length - 1)
+                                wizz.destroy()
+                            })
+                    binding.loading = false
                 }
 
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                     super.onReceivedError(view, request, error)
+                    binding.loading = false
                 }
             }
 
@@ -342,61 +407,21 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 wizz.loadUrl(url)
             }
         } else {
-            startActivity(Intent(Settings.ACTION_WIFI_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
+            startActivity(Intent(Settings.ACTION_WIFI_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
     }
-
 
     companion object {
         const val REQUEST_IMAGE_CAPTURE = 101
         const val REQUEST_CODE_SPEECH_INPUT = 102
         const val REQUEST_CHECK_TTS_DATA = 103
-
     }
+}
 
-    inner class SpinAdapter(context: Context, resource: Int, refs: Array<String>) : ArrayAdapter<String>(context, resource) {
-
-        private var index = ArrayList<Int>()
-        private var mInflater: LayoutInflater? = null
-
-        init {
-            mInflater = LayoutInflater.from(context)
-
-            index.clear()
-            refs.forEach {
-                val i = allCodes!!.indexOf(it)
-                if (i >= 1) index.add(i) else index.add(0)
-            }
-            index.trimToSize()
-
-            notifyDataSetChanged()
-        }
-
-        override fun getCount(): Int {
-            return index.size
-        }
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-
-            val view: View? = convertView
-                    ?: mInflater?.inflate(R.layout.spinner_item, parent, false)
-
-            val drw = context.resources.getDrawable(
-                    context.resources.getIdentifier(
-                            allFlags!![index[position]],
-                            "drawable",
-                            context.packageName))
-
-            view?.findViewById<TextView>(R.id.txt)?.setCompoundDrawablesWithIntrinsicBounds(drw, null, null, null)
-
-            view?.findViewById<TextView>(R.id.txt)?.text = allCodes!![index[position]]
-
-            return view!!
-        }
-
-        override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup?): View {
-            return getView(position, convertView, parent)
-        }
+object BindingAdapters {
+    @JvmStatic
+    @BindingAdapter("visibleGone")
+    fun showHide(view: View, show: Boolean) {
+        view.visibility = if (show) View.VISIBLE else View.GONE
     }
-
 }
