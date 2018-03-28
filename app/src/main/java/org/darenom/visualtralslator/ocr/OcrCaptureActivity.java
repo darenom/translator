@@ -26,9 +26,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
-import android.os.Build;
 import android.os.Bundle;
-import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -46,18 +44,17 @@ import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.vision.text.TextBlock;
 import com.google.android.gms.vision.text.TextRecognizer;
 
-import org.darenom.visualtralslator.MainActivity;
+import org.darenom.visualtralslator.TranslateActivity;
 import org.darenom.visualtralslator.R;
 import org.darenom.visualtralslator.ocr.ui.camera.CameraSource;
 import org.darenom.visualtralslator.ocr.ui.camera.CameraSourcePreview;
 import org.darenom.visualtralslator.ocr.ui.camera.GraphicOverlay;
 
 import java.io.IOException;
-import java.util.Locale;
 
 /**
  * Properly :) copied from https://codelabs.developers.google.com/codelabs/mobile-vision-ocr
- * removed TTS, send text back to MainActivity
+ * removed TTS, send text back to TranslateActivity
  *
  * Activity for the Ocr Detecting app.  This app detects text and displays the value with the
  * rear facing camera. During detection overlay graphics are drawn to indicate the position,
@@ -335,7 +332,7 @@ public final class OcrCaptureActivity extends AppCompatActivity {
             text = graphic.getTextBlock();
             if (text != null && text.getValue() != null) {
 
-                Intent i = new Intent(this, MainActivity.class);
+                Intent i = new Intent(this, TranslateActivity.class);
                 i.putExtra("text", text.getValue());
                 startActivity(i);
                 finish();

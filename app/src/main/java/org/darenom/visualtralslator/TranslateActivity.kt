@@ -7,7 +7,6 @@ import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.databinding.BindingAdapter
 import android.databinding.DataBindingUtil
 import android.net.ConnectivityManager
 import android.os.Bundle
@@ -36,14 +35,14 @@ import java.net.URLEncoder
 import java.util.*
 import kotlin.collections.ArrayList
 
-class MainActivity : AppCompatActivity(), View.OnClickListener {
+class TranslateActivity : AppCompatActivity(), View.OnClickListener {
 
     data class Refs(var say: String? = null, var hear: String? = null)
 
-    private lateinit var vm: MainViewModel
+    private lateinit var vm: TranslateViewModel
     private lateinit var binding: ActivityMainBinding
 
-    var tts: TextToSpeech? = null
+    private var tts: TextToSpeech? = null
     private var currentLocale: Locale? = null
     private val ttsListener = TextToSpeech.OnInitListener {
         if (it == TextToSpeech.SUCCESS) {
@@ -99,7 +98,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         super.onCreate(savedInstanceState)
 
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
-        vm = ViewModelProviders.of(this).get(MainViewModel::class.java)
+        vm = ViewModelProviders.of(this).get(TranslateViewModel::class.java)
 
         if (intent.hasExtra("text"))
             vm.edt.value = intent.getStringExtra("text")
@@ -387,13 +386,5 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     companion object {
         const val REQUEST_CODE_SPEECH_INPUT = 102
         const val REQUEST_CHECK_TTS_DATA = 103
-    }
-}
-
-object BindingAdapters {
-    @JvmStatic
-    @BindingAdapter("visibleGone")
-    fun showHide(view: View, show: Boolean) {
-        view.visibility = if (show) View.VISIBLE else View.GONE
     }
 }

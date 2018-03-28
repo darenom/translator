@@ -9,13 +9,13 @@ import android.content.SharedPreferences
 /**
  * Created by adm on 24/03/2018.
  */
-class MainViewModel(app: Application) : AndroidViewModel(app) {
+class TranslateViewModel(app: Application) : AndroidViewModel(app) {
 
     private var settings: SharedPreferences? = null
 
     var allCodes: Array<String>? = null
     var allFlags: Array<String>? = null
-    var mList = HashMap<String, MainActivity.Refs>()
+    var mList = HashMap<String, TranslateActivity.Refs>()
     var isConsolidated = false
 
     var sp1 = MutableLiveData<Int>()
