@@ -16,6 +16,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var allCodes: Array<String>? = null
     var allFlags: Array<String>? = null
     var mList = HashMap<String, MainActivity.Refs>()
+    var isConsolidated = false
 
     var sp1 = MutableLiveData<Int>()
     var sp2 = MutableLiveData<Int>()
@@ -33,6 +34,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         edt.value = settings!!.getString(EDT_KEY, "")
         txt.value = settings!!.getString(TXT_KEY, "")
 
+    }
+
+
+    fun consolidateList(){
+
+        val listSay = ArrayList<String>()
+        mList.keys.forEach {
+            if (!listSay.contains(mList[it]!!.say))
+                if (null != mList[it]!!.say)
+                    listSay.add(mList[it]!!.say!!)
+        }
+
+        mList.keys.forEach {
+            if (null == mList[it]!!.say)
+                if (listSay.contains(mList[it]!!.hear!!.split("-")[0]))
+                    mList[it]!!.say = mList[it]!!.hear!!.split("-")[0]
+        }
+
+        isConsolidated = true
     }
 
     fun stamp(){

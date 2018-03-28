@@ -9,12 +9,8 @@ import android.content.Context
 import android.content.Intent
 import android.databinding.BindingAdapter
 import android.databinding.DataBindingUtil
-import android.graphics.Bitmap
 import android.net.ConnectivityManager
-import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
-import android.provider.MediaStore.EXTRA_OUTPUT
 import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
@@ -32,11 +28,9 @@ import android.widget.AdapterView
 import android.widget.Toast
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
-import com.google.android.gms.vision.Frame
-import com.google.android.gms.vision.text.TextRecognizer
 import kotlinx.android.synthetic.main.activity_main.*
 import org.darenom.visualtralslator.databinding.ActivityMainBinding
-import java.io.File
+import org.darenom.visualtralslator.ocr.OcrCaptureActivity
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 import java.util.*
@@ -53,7 +47,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     private var currentLocale: Locale? = null
     private val ttsListener = TextToSpeech.OnInitListener {
         if (it == TextToSpeech.SUCCESS) {
-            if (null == vm.allCodes) {
+            if (!vm.isConsolidated) {
                 tts?.availableLanguages?.forEach {
                     if (!vm.mList.containsKey(it.country))
                         if (null == vm.mList[it.country])
@@ -63,6 +57,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     else
                         vm.mList[it.country] = Refs(it.language, vm.mList[it.country]!!.hear)
                 }
+                vm.consolidateList()
             }
             tts?.setOnUtteranceProgressListener(ttsUtteranceProgressListener)
             onReady()
@@ -105,6 +100,9 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         vm = ViewModelProviders.of(this).get(MainViewModel::class.java)
+
+        if (intent.hasExtra("text"))
+            vm.edt.value = intent.getStringExtra("text")
     }
 
     override fun onStart() {
@@ -129,7 +127,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
         currentLocale = Locale.getDefault()
 
-        if (null == vm.allCodes) {
+        if (!vm.isConsolidated) {
             vm.allCodes = resources.getStringArray(R.array.country_code)
             vm.allFlags = resources.getStringArray(R.array.country_drawable)
 
@@ -237,12 +235,11 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                             .showInputMethodPicker()
                 }
                 actionCamera.id -> {
-                    binding.loading = true
-                    // permission handled by intent
-                    val i = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-                    if (i.resolveActivity(packageManager) != null) {
-                        startActivityForResult(i, REQUEST_IMAGE_CAPTURE)
-                    }
+
+                    startActivity(
+                            Intent(this,
+                                    OcrCaptureActivity::class.java
+                            ).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
                 }
                 actionHear.id -> {
                     binding.loading = true
@@ -305,14 +302,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == Activity.RESULT_OK) {
-            val extras = data?.extras
-            val imageBitmap = extras!!.get("data") as Bitmap
-            val decode = decode(imageBitmap)
-            vm.edt.value = decode
-
-            binding.loading = false
-        }
         if (requestCode == REQUEST_CODE_SPEECH_INPUT) {
             if (resultCode == Activity.RESULT_OK) {
                 if (null != data) {
@@ -347,22 +336,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         super.onStop()
         tts?.stop()
         tts?.shutdown()
-    }
-
-    /**
-     * Detect texts in image
-     */
-    private fun decode(imageBitmap: Bitmap): String {
-        var decode = ""
-        val textRecognizer = TextRecognizer.Builder(this).build()
-        val frame = Frame.Builder().setBitmap(imageBitmap).build()
-        val txts = textRecognizer.detect(frame)
-        for (i in 0 until txts.size()) {
-            val txt = txts.valueAt(i)
-            decode = decode + txt.value + "\n"
-        }
-        return decode
-
     }
 
     /**
@@ -412,7 +385,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     companion object {
-        const val REQUEST_IMAGE_CAPTURE = 101
         const val REQUEST_CODE_SPEECH_INPUT = 102
         const val REQUEST_CHECK_TTS_DATA = 103
     }
