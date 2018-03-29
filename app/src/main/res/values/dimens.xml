@@ -6,6 +6,6 @@
     <dimen name="main_text_normal">18sp</dimen>
     <dimen name="main_text_small">10sp</dimen>
 
-    <dimen name="round_button_size">42dp</dimen>
-    <dimen name="round_button_radius">21dp</dimen>
+    <dimen name="round_button_size">38dp</dimen>
+    <dimen name="round_button_radius">19dp</dimen>
 </resources>
