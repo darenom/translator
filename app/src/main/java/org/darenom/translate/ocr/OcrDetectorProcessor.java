@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.darenom.visualtralslator.ocr;
+package org.darenom.translate.ocr;
 
 import android.util.Log;
 import android.util.SparseArray;
@@ -21,7 +21,7 @@ import android.util.SparseArray;
 import com.google.android.gms.vision.Detector;
 import com.google.android.gms.vision.text.TextBlock;
 
-import org.darenom.visualtralslator.ocr.ui.camera.GraphicOverlay;
+import org.darenom.translate.ocr.ui.camera.GraphicOverlay;
 
 /**
  * A very simple Processor which gets detected TextBlocks and adds them to the overlay

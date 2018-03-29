@@ -1,4 +1,4 @@
-package org.darenom.visualtralslator;
+package org.darenom.translate;
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -27,9 +27,9 @@ import android.widget.AdapterView
 import android.widget.Toast
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
-import kotlinx.android.synthetic.main.activity_main.*
-import org.darenom.visualtralslator.databinding.ActivityMainBinding
-import org.darenom.visualtralslator.ocr.OcrCaptureActivity
+import kotlinx.android.synthetic.main.activity_translate.*
+import org.darenom.translate.databinding.ActivityTranslateBinding
+import org.darenom.translate.ocr.OcrCaptureActivity
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 import java.util.*
@@ -40,7 +40,7 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
     data class Refs(var say: String? = null, var hear: String? = null)
 
     private lateinit var vm: TranslateViewModel
-    private lateinit var binding: ActivityMainBinding
+    private lateinit var binding: ActivityTranslateBinding
 
     private var tts: TextToSpeech? = null
     private var currentLocale: Locale? = null
@@ -97,7 +97,7 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_translate)
         vm = ViewModelProviders.of(this).get(TranslateViewModel::class.java)
 
         if (intent.hasExtra("text"))

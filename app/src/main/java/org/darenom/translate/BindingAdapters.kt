@@ -1,4 +1,4 @@
-package org.darenom.visualtralslator
+package org.darenom.translate
 
 import android.databinding.BindingAdapter
 import android.view.View

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.darenom.visualtralslator.ocr;
+package org.darenom.translate.ocr;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -44,11 +44,11 @@ import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.vision.text.TextBlock;
 import com.google.android.gms.vision.text.TextRecognizer;
 
-import org.darenom.visualtralslator.TranslateActivity;
-import org.darenom.visualtralslator.R;
-import org.darenom.visualtralslator.ocr.ui.camera.CameraSource;
-import org.darenom.visualtralslator.ocr.ui.camera.CameraSourcePreview;
-import org.darenom.visualtralslator.ocr.ui.camera.GraphicOverlay;
+import org.darenom.translate.TranslateActivity;
+import org.darenom.translate.R;
+import org.darenom.translate.ocr.ui.camera.CameraSource;
+import org.darenom.translate.ocr.ui.camera.CameraSourcePreview;
+import org.darenom.translate.ocr.ui.camera.GraphicOverlay;
 
 import java.io.IOException;
 
@@ -88,7 +88,7 @@ public final class OcrCaptureActivity extends AppCompatActivity {
     @Override
     public void onCreate(Bundle bundle) {
         super.onCreate(bundle);
-        setContentView(R.layout.ocr_capture);
+        setContentView(R.layout.activity_ocr_capture);
 
         mPreview = findViewById(R.id.preview);
         mGraphicOverlay = findViewById(R.id.graphicOverlay);
@@ -109,7 +109,7 @@ public final class OcrCaptureActivity extends AppCompatActivity {
         gestureDetector = new GestureDetector(this, new CaptureGestureListener());
         scaleGestureDetector = new ScaleGestureDetector(this, new ScaleListener());
 
-        Snackbar.make(mGraphicOverlay, "Tap to Speak. Pinch/Stretch to zoom",
+        Snackbar.make(mGraphicOverlay, getString(R.string.ocr),
                 Snackbar.LENGTH_LONG)
                 .show();
     }

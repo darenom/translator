@@ -1,4 +1,4 @@
-package org.darenom.visualtralslator
+package org.darenom.translate
 
 import android.app.Application
 import android.arch.lifecycle.AndroidViewModel
