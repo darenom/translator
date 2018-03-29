@@ -94,8 +94,8 @@ public final class OcrCaptureActivity extends AppCompatActivity {
         mGraphicOverlay = findViewById(R.id.graphicOverlay);
 
         // Set good defaults for capturing text.
-        boolean autoFocus = true;
-        boolean useFlash = false;
+        boolean autoFocus = getIntent().getBooleanExtra(AutoFocus,true);
+        boolean useFlash = getIntent().getBooleanExtra(UseFlash, false);
 
         // Check for the camera permission before accessing the camera.  If the
         // permission is not granted yet, request permission.

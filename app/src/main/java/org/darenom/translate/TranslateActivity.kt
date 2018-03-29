@@ -186,6 +186,8 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 vm.edt.value = s.toString()
+                if (vm.edt.value!!.isEmpty())
+                    vm.txt.value = ""
             }
         })
         text.addTextChangedListener(object : TextWatcher {
@@ -235,10 +237,11 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                 }
                 actionCamera.id -> {
 
-                    startActivity(
-                            Intent(this,
-                                    OcrCaptureActivity::class.java
-                            ).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
+                    val i = Intent(this, OcrCaptureActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                            .putExtra(OcrCaptureActivity.AutoFocus, true)
+                            .putExtra(OcrCaptureActivity.UseFlash, false)
+                    startActivity(i)
                 }
                 actionHear.id -> {
                     binding.loading = true
