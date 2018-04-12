@@ -40,12 +40,13 @@ class TranslateViewModel(app: Application) : AndroidViewModel(app) {
     fun consolidateList(){
 
         val listSay = ArrayList<String>()
+        // set
         mList.keys.forEach {
             if (!listSay.contains(mList[it]!!.say))
                 if (null != mList[it]!!.say)
                     listSay.add(mList[it]!!.say!!)
         }
-
+        // subdue
         mList.keys.forEach {
             if (null == mList[it]!!.say)
                 if (listSay.contains(mList[it]!!.hear!!.split("-")[0]))

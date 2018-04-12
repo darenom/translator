@@ -57,9 +57,9 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                         vm.mList[it.country] = Refs(it.language, vm.mList[it.country]!!.hear)
                 }
                 vm.consolidateList()
+                onReady()
             }
             tts?.setOnUtteranceProgressListener(ttsUtteranceProgressListener)
-            onReady()
         }
     }
     private val itemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -166,10 +166,11 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                     null,
                     null)
         } else {
-            // restart tts
-            startActivityForResult(
+            if (null == tts)
+                startActivityForResult(
                     Intent().setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA),
                     REQUEST_CHECK_TTS_DATA)
+            onReady()
         }
     }
 
@@ -238,7 +239,7 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                 actionCamera.id -> {
 
                     val i = Intent(this, OcrCaptureActivity::class.java)
-                            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             .putExtra(OcrCaptureActivity.AutoFocus, true)
                             .putExtra(OcrCaptureActivity.UseFlash, false)
                     startActivity(i)
@@ -268,10 +269,6 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                 actionSwap.id -> {
                     val r1 = spin_lang_1.selectedItemPosition
                     val r2 = spin_lang_2.selectedItemPosition
-                    val e = vm.edt.value!!
-                    val t = vm.txt.value!!
-                    vm.edt.value = t
-                    vm.txt.value = e
                     spin_lang_2.setSelection(r1)
                     spin_lang_1.setSelection(r2)
 
@@ -315,7 +312,8 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
         }
         if (requestCode == REQUEST_CHECK_TTS_DATA) {
             if (resultCode == TextToSpeech.Engine.CHECK_VOICE_DATA_PASS) {
-                tts = TextToSpeech(this, ttsListener)
+                // todo aborted leak
+                Thread().run { tts = TextToSpeech(this@TranslateActivity, ttsListener) }
             } else {
                 // No engine found, go to store
                 val b = Bundle()
@@ -332,12 +330,9 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
     override fun onPause() {
         super.onPause()
         vm.stamp()
-    }
-
-    override fun onStop() {
-        super.onStop()
         tts?.stop()
         tts?.shutdown()
+
     }
 
     /**
