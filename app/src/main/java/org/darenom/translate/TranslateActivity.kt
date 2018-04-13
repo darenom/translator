@@ -57,9 +57,10 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                         vm.mList[it.country] = Refs(it.language, vm.mList[it.country]!!.hear)
                 }
                 vm.consolidateList()
-                onReady()
+
             }
             tts?.setOnUtteranceProgressListener(ttsUtteranceProgressListener)
+            onReady()
         }
     }
     private val itemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -106,20 +107,23 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
 
     override fun onStart() {
         super.onStart()
-        checkPlayServices()
+        if (!checkPlayServices()){
+            Toast.makeText(this, getString(R.string.no_gg), Toast.LENGTH_LONG).show()
+            finish()
+        }
     }
 
-    private fun checkPlayServices() {
+    private fun checkPlayServices(): Boolean {
         val s = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this)
         return when (s) {
-            ConnectionResult.SUCCESS -> {
-                setUp()
-            }
-            else -> {
-                Toast.makeText(this, getString(R.string.no_gg), Toast.LENGTH_LONG).show()
-                finish()
-            }
+            ConnectionResult.SUCCESS -> true
+            else -> false
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        setUp()
     }
 
     private fun setUp() {
@@ -155,7 +159,8 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
 
                             // then
                             // all languages that can be said
-                            startActivityForResult(
+                            if (null == tts)
+                                startActivityForResult(
                                     Intent().setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA),
                                     REQUEST_CHECK_TTS_DATA)
 
@@ -170,7 +175,6 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                 startActivityForResult(
                     Intent().setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA),
                     REQUEST_CHECK_TTS_DATA)
-            onReady()
         }
     }
 
