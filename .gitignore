@@ -3,6 +3,7 @@
 build
 gradle
 
+*.DS_Store
 *.iml
 *.properties
 gradlew*
