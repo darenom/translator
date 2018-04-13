@@ -37,7 +37,7 @@ dependencies {
     kapt "android.arch.lifecycle:compiler:$rootProject.ext.archLifecycleVersion"
 
     //databinding
-    kapt 'com.android.databinding:compiler:3.1.0'
+    kapt 'com.android.databinding:compiler:3.1.1'
 
     implementation 'com.google.android.gms:play-services-vision:11.4.2'
 }
