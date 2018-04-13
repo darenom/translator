@@ -17,7 +17,7 @@
         android:supportsRtl="true"
         android:theme="@style/ToToTranslator">
 
-        <activity android:name="TranslateActivity">
+        <activity android:name=".TranslateActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
