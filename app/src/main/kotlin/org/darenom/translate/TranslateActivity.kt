@@ -1,4 +1,4 @@
-package org.darenom.translate;
+package org.darenom.translate
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -84,6 +84,7 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
             binding.loading = false
         }
 
+        @Suppress("OverridingDeprecatedMember")
         override fun onError(utteranceId: String?) {
             binding.loading = false
         }
