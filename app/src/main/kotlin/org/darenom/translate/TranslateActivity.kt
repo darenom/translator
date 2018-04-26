@@ -2,6 +2,7 @@ package org.darenom.translate
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.arch.lifecycle.Observer
 import android.arch.lifecycle.ViewModelProviders
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
@@ -17,6 +18,7 @@ import android.speech.tts.UtteranceProgressListener
 import android.support.v7.app.AppCompatActivity
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.webkit.WebResourceError
@@ -33,6 +35,7 @@ import org.darenom.translate.ocr.OcrCaptureActivity
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 import java.util.*
+
 import kotlin.collections.ArrayList
 
 class TranslateActivity : AppCompatActivity(), View.OnClickListener {
@@ -46,21 +49,19 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
     private var currentLocale: Locale? = null
     private val ttsListener = TextToSpeech.OnInitListener {
         if (it == TextToSpeech.SUCCESS) {
-            if (!vm.isConsolidated) {
+            if (!vm.isConsolidated.value!!) {
                 tts?.availableLanguages?.forEach {
-                    if (!vm.mList.containsKey(it.country))
-                        if (null == vm.mList[it.country])
-                            vm.mList[it.country] = Refs(it.language, null)
+                    if (!vm.inputList!!.containsKey(it.country))
+                        if (null == vm.inputList!![it.country])
+                            vm.inputList!![it.country] = Refs(it.language, null)
                         else
-                            vm.mList[it.country] = Refs(it.language, vm.mList[it.country]!!.hear)
+                            vm.inputList!![it.country] = Refs(it.language, vm.inputList!![it.country]!!.hear)
                     else
-                        vm.mList[it.country] = Refs(it.language, vm.mList[it.country]!!.hear)
+                        vm.inputList!![it.country] = Refs(it.language, vm.inputList!![it.country]!!.hear)
                 }
                 vm.consolidateList()
-
             }
             tts?.setOnUtteranceProgressListener(ttsUtteranceProgressListener)
-            onReady()
         }
     }
     private val itemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -101,9 +102,6 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
 
         binding = DataBindingUtil.setContentView(this, R.layout.activity_translate)
         vm = ViewModelProviders.of(this).get(TranslateViewModel::class.java)
-
-        if (intent.hasExtra("text"))
-            vm.edt.value = intent.getStringExtra("text")
     }
 
     override fun onStart() {
@@ -111,6 +109,18 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
         if (!checkPlayServices()){
             Toast.makeText(this, getString(R.string.no_gg), Toast.LENGTH_LONG).show()
             finish()
+        } else {
+
+            if (intent.hasExtra("text"))
+                vm.edt.value = intent.getStringExtra("text")
+
+            vm.isConsolidated.observe(this, Observer {
+                if (null != it)
+                    if (it)
+                        onReady()
+            })
+
+            setUp()
         }
     }
 
@@ -122,16 +132,13 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        setUp()
-    }
+
 
     private fun setUp() {
 
         currentLocale = Locale.getDefault()
 
-        if (!vm.isConsolidated) {
+        if (!vm.isConsolidated.value!!) {
             vm.allCodes = resources.getStringArray(R.array.country_code)
             vm.allFlags = resources.getStringArray(R.array.country_drawable)
 
@@ -153,9 +160,9 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                             voiceList.forEach {
                                 val t = it.split("-")
                                 val key = t[t.size - 1]
-                                if (!vm.mList.containsKey(key))
-                                    if (null == vm.mList[key])
-                                        vm.mList[key] = Refs(null, it)
+                                if (!vm.inputList!!.containsKey(key))
+                                    if (null == vm.inputList!![key])
+                                        vm.inputList!![key] = Refs(null, it)
                             }
 
                             // then
@@ -181,8 +188,8 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
 
     private fun onReady() {
 
-        spin_lang_1.adapter = SpinAdapter(this, R.layout.spinner_item, vm.mList.keys.toTypedArray(), vm.allCodes!!, vm.allFlags!!)
-        spin_lang_2.adapter = SpinAdapter(this, R.layout.spinner_item, vm.mList.keys.toTypedArray(), vm.allCodes!!, vm.allFlags!!)
+        spin_lang_1.adapter = SpinAdapter(this, R.layout.spinner_item, vm.sortedList.keys.toTypedArray(), vm.allCodes!!, vm.allFlags!!)
+        spin_lang_2.adapter = SpinAdapter(this, R.layout.spinner_item, vm.sortedList.keys.toTypedArray(), vm.allCodes!!, vm.allFlags!!)
 
         spin_lang_1.onItemSelectedListener = itemSelectedListener
         spin_lang_2.onItemSelectedListener = itemSelectedListener
@@ -254,7 +261,7 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                     val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                     i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                     i.putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.main_speech_prompt))
-                    i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, vm.mList.values.elementAt(vm.sp2.value!!).hear)
+                    i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, vm.sortedList.values.elementAt(vm.sp2.value!!).hear)
                     try {
                         startActivityForResult(i, REQUEST_CODE_SPEECH_INPUT)
                     } catch (a: ActivityNotFoundException) {
@@ -266,10 +273,10 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                 actionTranslate.id -> {
                     translate(
                             vm.edt.value!!,
-                            vm.mList.values.elementAt(vm.sp2.value!!).say
-                                    ?: vm.mList.values.elementAt(vm.sp2.value!!).hear!!.split("-")[0],
-                            vm.mList.values.elementAt(vm.sp1.value!!).say
-                                    ?: vm.mList.values.elementAt(vm.sp1.value!!).hear!!.split("-")[0])
+                            vm.sortedList.values.elementAt(vm.sp2.value!!).say
+                                    ?: vm.sortedList.values.elementAt(vm.sp2.value!!).hear!!.split("-")[0],
+                            vm.sortedList.values.elementAt(vm.sp1.value!!).say
+                                    ?: vm.sortedList.values.elementAt(vm.sp1.value!!).hear!!.split("-")[0])
                 }
                 actionSwap.id -> {
                     val r1 = spin_lang_1.selectedItemPosition
@@ -280,7 +287,7 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                 }
                 actionSay.id -> {
 
-                    if (null == vm.mList.values.elementAt(vm.sp1.value!!).say) {
+                    if (null == vm.sortedList.values.elementAt(vm.sp1.value!!).say) {
 
                         val b = Bundle()
                         b.putString("action", "com.android.settings.TTS_SETTINGS")
@@ -295,8 +302,8 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                         binding.loading = true
 
                         tts?.language = Locale(
-                                vm.mList.values.elementAt(vm.sp1.value!!).say
-                                        ?: vm.mList.values.elementAt(vm.sp1.value!!).hear!!.split("-")[0])
+                                vm.sortedList.values.elementAt(vm.sp1.value!!).say
+                                        ?: vm.sortedList.values.elementAt(vm.sp1.value!!).hear!!.split("-")[0])
 
                         tts?.speak(vm.txt.value!!, TextToSpeech.QUEUE_FLUSH, null, vm.txt.value!!.hashCode().toString())
                     }
@@ -317,8 +324,7 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
         }
         if (requestCode == REQUEST_CHECK_TTS_DATA) {
             if (resultCode == TextToSpeech.Engine.CHECK_VOICE_DATA_PASS) {
-                // todo aborted leak
-                Thread().run { tts = TextToSpeech(this@TranslateActivity, ttsListener) }
+                tts = TextToSpeech(this@TranslateActivity, ttsListener)
             } else {
                 // No engine found, go to store
                 val b = Bundle()
@@ -335,9 +341,12 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
     override fun onPause() {
         super.onPause()
         vm.stamp()
+    }
+
+    override fun onStop() {
+        super.onStop()
         tts?.stop()
         tts?.shutdown()
-
     }
 
     /**
@@ -349,6 +358,7 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
 
         if (isNetworkAvailable) {
             binding.loading = true
+
             val wizz = WebView(this)
             wizz.settings.javaScriptEnabled = true
             wizz.webViewClient = object : WebViewClient() {
@@ -359,6 +369,7 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                             "(function() { return (document.getElementsByClassName('t0')[0].innerHTML); })();",
                             { html ->
                                 vm.txt.value = html.substring(1, html.length - 1)
+                                wizz.clearCache(true)
                                 wizz.destroy()
                             })
                     binding.loading = false
@@ -366,6 +377,7 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
 
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                     super.onReceivedError(view, request, error)
+                    Log.e("Translate", "webview - onReceivedError")
                     binding.loading = false
                 }
             }
@@ -377,7 +389,7 @@ class TranslateActivity : AppCompatActivity(), View.OnClickListener {
                         + "&ie=UTF-8&prev=_m&q=" + URLEncoder.encode(textToTranslate, "utf-8"))
 
             } catch (e: UnsupportedEncodingException) {
-                e.printStackTrace()
+                Log.e("translate", e.message)
             } finally {
                 wizz.loadUrl(url)
             }

@@ -4,6 +4,7 @@ import android.app.Application
 import android.arch.lifecycle.AndroidViewModel
 import android.arch.lifecycle.MutableLiveData
 import android.content.SharedPreferences
+import java.util.*
 
 
 /**
@@ -15,8 +16,9 @@ class TranslateViewModel(app: Application) : AndroidViewModel(app) {
 
     var allCodes: Array<String>? = null
     var allFlags: Array<String>? = null
-    var mList = HashMap<String, TranslateActivity.Refs>()
-    var isConsolidated = false
+    var inputList: HashMap<String, TranslateActivity.Refs>? = null
+    lateinit var sortedList: SortedMap<String, TranslateActivity.Refs>
+    var isConsolidated = MutableLiveData<Boolean>()
 
     var sp1 = MutableLiveData<Int>()
     var sp2 = MutableLiveData<Int>()
@@ -25,7 +27,8 @@ class TranslateViewModel(app: Application) : AndroidViewModel(app) {
     var txt = MutableLiveData<String>()
 
     init {
-
+        isConsolidated.value = false
+        inputList = HashMap()
         settings = getApplication<Application>()
                 .getSharedPreferences(getApplication<Application>().packageName, 0)
 
@@ -36,24 +39,26 @@ class TranslateViewModel(app: Application) : AndroidViewModel(app) {
 
     }
 
-
     fun consolidateList(){
 
         val listSay = ArrayList<String>()
         // set
-        mList.keys.forEach {
-            if (!listSay.contains(mList[it]!!.say))
-                if (null != mList[it]!!.say)
-                    listSay.add(mList[it]!!.say!!)
+        inputList!!.keys.forEach {
+            if (!listSay.contains(inputList!![it]!!.say))
+                if (null != inputList!![it]!!.say)
+                    listSay.add(inputList!![it]!!.say!!)
         }
         // subdue
-        mList.keys.forEach {
-            if (null == mList[it]!!.say)
-                if (listSay.contains(mList[it]!!.hear!!.split("-")[0]))
-                    mList[it]!!.say = mList[it]!!.hear!!.split("-")[0]
+        inputList!!.keys.forEach {
+            if (null == inputList!![it]!!.say)
+                if (listSay.contains(inputList!![it]!!.hear!!.split("-")[0]))
+                    inputList!![it]!!.say = inputList!![it]!!.hear!!.split("-")[0]
         }
 
-        isConsolidated = true
+        sortedList = inputList!!.toSortedMap()
+
+        inputList = null
+        isConsolidated.value = true
     }
 
     fun stamp(){
